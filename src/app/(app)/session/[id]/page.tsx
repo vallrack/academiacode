@@ -61,7 +61,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       try {
         const parsedTestCases = JSON.parse(challenge.testCases);
         setTestCases(parsedTestCases.map((tc: any) => ({ ...tc, status: 'pending' })));
-        setEvaluationMode('function');
+        // Default to function mode, will be checked on run
       } catch (e) {
         console.error("Failed to parse test cases JSON:", e);
         toast({
@@ -74,8 +74,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     }
     
     if (challenge?.language === 'javascript') {
-        const initialCode = `// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`;
-        setStudentCode(initialCode);
+        // Set a default code structure based on whether it's interactive or not
+        if(challenge.allowInteractiveApis){
+            const initialCode = `// Pide dos números al usuario y muestra la suma\nlet numero1 = parseFloat(prompt("Ingresa el primer número:"));\nlet numero2 = parseFloat(prompt("Ingresa el segundo número:"));\nlet suma = numero1 + numero2;\nalert("La suma es: " + suma);`;
+            setStudentCode(initialCode);
+        } else {
+            const initialCode = `// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`;
+            setStudentCode(initialCode);
+        }
     } else {
         setStudentCode('');
     }
@@ -103,10 +109,6 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     });
 
     try {
-      const isFunctionMode = /function\s+suma\s*\(.*?\)\s*\{/.test(studentCode);
-      setEvaluationMode(isFunctionMode ? 'function' : 'interactive');
-
-      // AI-driven analysis and evaluation
       const result: AIAntiCheatingOutput = await analyzeStudentActivity({
         studentCode: studentCode,
         examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
@@ -119,9 +121,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         report: result.report
       });
 
-      if (isFunctionMode) {
-        setTestCases(result.testCaseResults);
-        const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
+      // The AI is now responsible for evaluating test cases for all code structures.
+      setTestCases(result.testCaseResults);
+      
+      const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
+
+      if (result.testCaseResults.length > 0) {
         if (allTestsPassed) {
           toast({
             title: "¡Pruebas Superadas!",
@@ -131,21 +136,17 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           toast({
               variant: "destructive",
               title: "Pruebas Fallidas",
-              description: "Algunos casos de prueba no pasaron. Revisa la lógica de tu función.",
+              description: "Algunos casos de prueba no pasaron. Revisa el reporte de la IA.",
           });
         }
       } else {
-        // Interactive mode: We don't show test cases, but we can simulate output
-        // For now, we'll just extract any `alert` messages from the AI report if possible
-        // or just show a success message.
-        setTerminalOutput("El script se ha analizado. La IA ha determinado que la lógica general es correcta, pero no se ejecutaron casos de prueba automatizados ya que no se definió una función 'suma'.");
          toast({
           title: "Análisis de Script Completado",
           description: "La IA ha evaluado la lógica de tu script.",
         });
       }
       
-      if (result.riskAssessment.toLowerCase() !== 'low') {
+      if (result.riskAssessment.toLowerCase() !== 'bajo') {
         toast({
           variant: "destructive",
           title: `Riesgo de Trampa Detectado: ${result.riskAssessment}`,
@@ -189,10 +190,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const getRiskVariant = (risk: string) => {
     switch (risk.toLowerCase()) {
-      case 'high':
+      case 'alto':
         return 'destructive';
-      case 'medium':
-        return 'default'; // yellow-ish
+      case 'medio':
+        return 'default'; // yellow-ish, needs custom styling if not default
       default:
         return 'secondary';
     }
@@ -314,29 +315,18 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             <div className="mt-auto flex flex-col gap-4 p-4">
                 <Separator />
                 
-                {evaluationMode === 'function' && testCases.length > 0 && (
+                {testCases.length > 0 && (
                   <div>
                       <h3 className="mb-2 font-semibold">Casos de Prueba</h3>
                       <div className="space-y-2 text-sm">
                           {testCases.map((testCase, index) => (
-                              <div key={index} className="flex items-center justify-between">
+                              <div key={index} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
                                   <span className="font-mono text-xs">Entrada: {JSON.stringify(testCase.input)}, Esperado: {JSON.stringify(testCase.expectedOutput)}</span>
                                   <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
                               </div>
                           ))}
                       </div>
                   </div>
-                )}
-                
-                {terminalOutput && (
-                    <Card>
-                        <CardHeader className='p-2 pb-0'>
-                            <CardTitle className='text-sm flex items-center gap-2'><Terminal className='h-4 w-4'/> Salida del Script</CardTitle>
-                        </CardHeader>
-                        <CardContent className='p-2'>
-                            <pre className="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap font-mono">{terminalOutput}</pre>
-                        </CardContent>
-                    </Card>
                 )}
                 
                 <Button className="w-full" onClick={handleRunCode} disabled={isRunning || isLoadingChallenge}>

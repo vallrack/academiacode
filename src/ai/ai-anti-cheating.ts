@@ -43,16 +43,16 @@ const AIAntiCheatingInputSchema = z.object({
 export type AIAntiCheatingInput = z.infer<typeof AIAntiCheatingInputSchema>;
 
 const AIAntiCheatingOutputSchema = z.object({
-  report: z.string().describe('A detailed report of potential cheating behaviors detected and an explanation of the code\'s correctness.'),
+  report: z.string().describe('Un reporte detallado en español de los posibles comportamientos de trampa detectados y una explicación de la corrección del código.'),
   riskAssessment: z
     .string()
-    .describe('Overall risk assessment based on the cheating analysis (e.g., low, medium, high).'),
+    .describe('Evaluación general del riesgo en español (por ejemplo, "Bajo", "Medio", "Alto").'),
   testCaseResults: z.array(z.object({
     input: z.any(),
     expectedOutput: z.any(),
-    status: z.enum(['passed', 'failed']).describe('Whether the student\'s code passed or failed this test case.'),
-    actualOutput: z.any().optional().describe('The actual output produced by the student\'s code logic.')
-  })).describe('An array containing the results for each test case execution.')
+    status: z.enum(['passed', 'failed']).describe('Si el código del estudiante pasó o falló este caso de prueba.'),
+    actualOutput: z.any().optional().describe('El resultado real producido por la lógica del código del estudiante.')
+  })).describe('Un array que contiene los resultados de la ejecución de cada caso de prueba.')
 });
 
 export type AIAntiCheatingOutput = z.infer<typeof AIAntiCheatingOutputSchema>;
@@ -67,40 +67,40 @@ const aiAntiCheatingPrompt = ai.definePrompt({
   name: 'aiAntiCheatingPrompt',
   input: {schema: AIAntiCheatingInputSchema},
   output: {schema: AIAntiCheatingOutputSchema},
-  prompt: `You are an AI proctoring and code evaluation tool. Your objective is to perform two tasks:
-  1.  Analyze the student's activity to identify potential cheating behaviors.
-  2.  Evaluate the student's code for correctness against a set of test cases.
+  prompt: `Eres una herramienta de IA para supervisión y evaluación de código. Tu respuesta DEBE estar completamente en español. Tus objetivos son:
+  1.  Analizar la actividad del estudiante para identificar posibles trampas.
+  2.  Evaluar la corrección del código del estudiante frente a un conjunto de casos de prueba.
 
-  ## Exam & Cheating Analysis Details
-  - Exam Details: {{{examDetails}}}
-  - Analyze the student's code and, if available, their video and screen recording. Look for cheating indicators.
+  ## Detalles del Examen y Análisis de Trampas
+  - Detalles del Examen: {{{examDetails}}}
+  - Analiza el código y, si están disponibles, el video y la grabación de pantalla del estudiante. Busca indicadores de trampa.
   {{#unless allowInteractiveApis}}
-  - In the code, flag the use of unauthorized APIs like 'prompt()', 'alert()', 'document.write()', etc.
+  - En el código, marca el uso de APIs no autorizadas como 'prompt()', 'alert()', 'document.write()', etc.
   {{/unless}}
-  - In video/screen, look for unauthorized devices, websites, or collaboration.
-  - Student Code to Analyze:
+  - En el video/pantalla, busca dispositivos, sitios web o colaboración no autorizados.
+  - Código del Estudiante a Analizar:
     \`\`\`
     {{{studentCode}}}
     \`\`\`
-  {{#if videoDataUri}}Video Recording: {{media url=videoDataUri}}{{/if}}
-  {{#if screenDataUri}}Screen Recording: {{media url=screenDataUri}}{{/if}}
+  {{#if videoDataUri}}Grabación de Video: {{media url=videoDataUri}}{{/if}}
+  {{#if screenDataUri}}Grabación de Pantalla: {{media url=screenDataUri}}{{/if}}
 
-  ## Code Correctness Evaluation
-  - You must evaluate the provided student code against the given test cases.
-  - The student may have written a script, a function, or used any other valid structure. Your evaluation must be flexible enough to understand the student's logic, regardless of the structure.
-  - For each test case, determine if the student's code logic produces the expected output for the given input.
-  - Your response MUST include a 'testCaseResults' array with the status ('passed' or 'failed') for each test case.
-  - The student's code might use interactive APIs like 'prompt()'. You should reason about the code's logic as if the test case 'input' was provided to those prompts. Do not try to execute them.
+  ## Evaluación de la Corrección del Código
+  - Debes evaluar el código del estudiante proporcionado frente a los casos de prueba dados.
+  - El estudiante puede haber escrito un script, una función o cualquier otra estructura válida. Tu evaluación debe ser lo suficientemente flexible como para entender la lógica del estudiante, independientemente de la estructura.
+  - Para cada caso de prueba, determina si la lógica del código del estudiante produce la salida esperada para la entrada dada.
+  - Tu respuesta DEBE incluir un array 'testCaseResults' con el estado ('passed' o 'failed') para cada caso de prueba.
+  - El código del estudiante podría usar APIs interactivas como 'prompt()'. Debes razonar sobre la lógica del código como si la 'input' del caso de prueba se proporcionara a esos prompts. No intentes ejecutarlos.
 
-  - Test Cases (JSON):
+  - Casos de Prueba (JSON):
     \`\`\`json
     {{{testCases}}}
     \`\`\`
 
-  ## Final Output
-  - Based on your analysis, provide a detailed 'report' explaining both cheating risks and code correctness.
-  - Provide an overall 'riskAssessment' (low, medium, or high) for cheating.
-  - Provide the 'testCaseResults' array with the outcome for each test case.
+  ## Salida Final
+  - Basado en tu análisis, proporciona un 'report' detallado explicando tanto los riesgos de trampa como la corrección del código.
+  - Proporciona una 'riskAssessment' general ("Bajo", "Medio", o "Alto") para las trampas.
+  - Proporciona el array 'testCaseResults' con el resultado de cada caso de prueba.
   `,
 });
 
