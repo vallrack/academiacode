@@ -67,9 +67,11 @@ export default function ChallengesPage() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button size="sm">
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Comenzar
+                                    <Button size="sm" asChild>
+                                        <Link href={`/session/${challenge.id}`}>
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Comenzar
+                                        </Link>
                                     </Button>
                                 </TableCell>
                             </TableRow>
