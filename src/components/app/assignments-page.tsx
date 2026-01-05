@@ -176,7 +176,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
               {canCreate 
                 ? 'Crea una nueva asignación para verla aquí.' 
                 : userProfile.groupId 
-                  ? `Buscando asignaciones para el grupo: ${userProfile.groupId.slice(-6)}`
+                  ? `Buscando asignaciones para el grupo: ${userProfile.groupId}`
                   : 'Cuando un profesor te asigne un desafío, aparecerá aquí.'
               }
             </p>
