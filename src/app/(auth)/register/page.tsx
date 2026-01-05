@@ -100,6 +100,8 @@ export default function RegisterPage() {
 
       const userDocRef = doc(firestore, 'users', user.uid);
 
+      // Note: The 'create' rule for /users/{userId} needs to allow this.
+      // We'll assume the rules allow a user to create their own document.
       await setDoc(userDocRef, userProfileData);
 
       toast({
@@ -117,16 +119,17 @@ export default function RegisterPage() {
           description: "La contraseña debe tener al menos 6 caracteres o el correo ya está en uso.",
         });
       } else {
+        // This is likely a Firestore security rule error now.
         const permissionError = new FirestorePermissionError({
             path: `users/${auth.currentUser?.uid || 'new-user'}`,
             operation: 'create',
-            requestResourceData: { email, displayName },
+            requestResourceData: { email, displayName, role: 'STUDENT' }, // Example data
         });
         errorEmitter.emit('permission-error', permissionError);
         toast({
             variant: "destructive",
             title: "Error al Guardar Perfil",
-            description: "No se pudo crear el perfil de usuario. Revisa las reglas de seguridad de Firestore.",
+            description: "No se pudo crear el perfil de usuario. Revisa las reglas de seguridad.",
         });
       }
     } finally {
@@ -237,3 +240,5 @@ export default function RegisterPage() {
     </Card>
   );
 }
+
+    

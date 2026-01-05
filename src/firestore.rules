@@ -124,7 +124,7 @@ service cloud.firestore {
       // Allow admins/teachers to list users, but individual users can only get their own document.
       allow list: if isTeacherOrAdmin();
       allow get: if isOwner(userId) || isTeacherOrAdmin();
-      allow create: if isOwner(userId); // A user can create their own profile.
+      allow create: if isOwner(userId) || request.auth == null; // Allow creation for new unauthenticated users
       allow update: if isOwner(userId); // A user can update their own profile.
       allow delete: if isOwner(userId); // A user can delete their own profile.
     }
@@ -185,12 +185,12 @@ service cloud.firestore {
     }
     
     /**
-     * @description Groups can be read by any authenticated user (for registration),
+     * @description Groups can be read by any user (authenticated or not) for registration purposes,
      * but only created/modified by a Super Admin.
      * @path /groups/{groupId}
      */
     match /groups/{groupId} {
-        allow read: if isSignedIn();
+        allow read: if true;
         allow write: if isAdmin();
     }
 
@@ -241,3 +241,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
