@@ -23,10 +23,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 type TestCaseStatus = "pending" | "passed" | "failed";
 
 type TestCase = {
-  input: string;
+  input: any;
+  expectedOutput: any;
   status: TestCaseStatus;
+  actualOutput?: any;
 };
-
 
 export default function SessionPage({ params }: { params: { id: string } }) {
   const { toast } = useToast();
@@ -47,22 +48,34 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const { data: challenge, isLoading: isLoadingChallenge } = useDoc<DocumentData>(challengeRef);
 
-
-  const [testCases, setTestCases] = useState<TestCase[]>([
-    { input: "[2,7,11,15], 9", status: "pending" },
-    { input: "[3,2,4], 6", status: "pending" },
-    { input: "[3,3], 6", status: "pending" },
-  ]);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [studentCode, setStudentCode] = useState('');
 
   useEffect(() => {
-    // We could load saved code here in the future
-    // For now, we'll leave it empty.
-    setStudentCode('');
-  }, [challenge]);
+    if (challenge && challenge.testCases) {
+      try {
+        const parsedTestCases = JSON.parse(challenge.testCases);
+        setTestCases(parsedTestCases.map((tc: any) => ({ ...tc, status: 'pending' })));
+      } catch (e) {
+        console.error("Failed to parse test cases JSON:", e);
+        toast({
+            variant: "destructive",
+            title: "Error en Casos de Prueba",
+            description: "El formato de los casos de prueba del desafío es inválido.",
+        });
+        setTestCases([]);
+      }
+    }
+    // Set initial code based on language
+    if (challenge?.language === 'javascript') {
+        setStudentCode(`// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`);
+    } else {
+        setStudentCode('');
+    }
+  }, [challenge, toast]);
   
 
   const handleRunCode = async () => {
@@ -78,28 +91,29 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
     setIsRunning(true);
     setAiReport(null);
-    setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending' }))); // Reset test cases
-    
+    setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending', actualOutput: undefined })));
+
     toast({
       title: "Ejecutando Análisis...",
-      description: "El código y la actividad del estudiante están siendo analizados por la IA.",
+      description: "El código y la actividad del estudiante están siendo analizados.",
     });
 
     try {
-      // AI anti-cheating analysis
+      // 1. AI anti-cheating analysis
       const analysisResult = await analyzeStudentActivity({
         studentCode: currentCode,
         examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
         allowInteractiveApis: challenge.allowInteractiveApis,
-        // videoDataUri and screenDataUri can be added here in a real implementation
       });
 
       setAiReport({
         risk: analysisResult.riskAssessment,
         report: analysisResult.report
       });
+      
+      const isHighRisk = analysisResult.riskAssessment.toLowerCase() !== 'low';
 
-      if (analysisResult.riskAssessment.toLowerCase() !== 'low') {
+      if (isHighRisk) {
         toast({
           variant: "destructive",
           title: `Riesgo de Trampa Detectado: ${analysisResult.riskAssessment}`,
@@ -111,27 +125,54 @@ export default function SessionPage({ params }: { params: { id: string } }) {
           description: "No se detectaron riesgos significativos.",
         });
       }
+      
+      // 2. Execute Test Cases if risk is not high
+      if (!isHighRisk) {
+        let allTestsPassed = true;
+        const updatedTestCases = testCases.map(tc => {
+            try {
+                // This is a sandboxed-like execution. `new Function()` is safer than `eval()`.
+                // It creates a function from the student's code string.
+                // We assume the challenge requires a function with a specific name, e.g., 'suma'.
+                const studentFunction = new Function(`${currentCode}; return suma;`)();
+                
+                // We call the student's function with the test case input.
+                // The '...' spread operator handles multiple arguments.
+                const actualOutput = studentFunction(...tc.input);
 
+                // Simple comparison. For objects/arrays, a deep equal would be better.
+                const passed = JSON.stringify(actualOutput) === JSON.stringify(tc.expectedOutput);
 
-      // Simulate test cases execution based on code content
-      // This is a placeholder for a real execution engine.
-      setTimeout(() => {
-          // A simple heuristic: if the code seems to solve the problem (e.g., contains 'suma'), pass tests.
-          const isCodeCorrect = currentCode.toLowerCase().includes('suma');
-          const newStatus: TestCaseStatus = isCodeCorrect ? "passed" : "failed";
+                if (!passed) allTestsPassed = false;
+                
+                return {
+                    ...tc,
+                    status: passed ? 'passed' : 'failed',
+                    actualOutput: actualOutput
+                };
 
-          setTestCases(prev => prev.map(tc => ({ ...tc, status: newStatus })));
-          
-          if (!isCodeCorrect) {
-              toast({
+            } catch (e: any) {
+                console.error("Test case execution error:", e);
+                allTestsPassed = false;
+                return { ...tc, status: 'failed', actualOutput: e.message };
+            }
+        });
+        
+        setTestCases(updatedTestCases);
+
+        if (allTestsPassed) {
+            toast({
+                title: "¡Pruebas Superadas!",
+                description: "Todos los casos de prueba han pasado.",
+            });
+        } else {
+            toast({
                 variant: "destructive",
                 title: "Pruebas Fallidas",
-                description: "El código no parece resolver el problema. Revisa la lógica."
-              })
-          }
-
-      }, 1000);
-
+                description: "Algunos casos de prueba no pasaron. Revisa los resultados.",
+            });
+        }
+      }
     } catch (error) {
       console.error("AI analysis or test execution failed:", error);
       toast({
@@ -140,8 +181,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         description: "No se pudo completar el análisis o la ejecución de las pruebas.",
       });
     } finally {
-        // We move the setIsRunning to inside the timeout to simulate the full process time
-        setTimeout(() => setIsRunning(false), 1000);
+        setIsRunning(false);
     }
   };
 
@@ -177,7 +217,6 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         return 'secondary';
     }
   };
-
 
   return (
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
@@ -300,7 +339,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                     <div className="space-y-2 text-sm">
                         {testCases.map((testCase, index) => (
                             <div key={index} className="flex items-center justify-between">
-                                <span className="font-mono">Entrada: {testCase.input}</span>
+                                <span className="font-mono text-xs">Entrada: {JSON.stringify(testCase.input)}, Esperado: {JSON.stringify(testCase.expectedOutput)}</span>
                                 <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
                             </div>
                         ))}

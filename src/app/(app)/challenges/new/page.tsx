@@ -33,10 +33,23 @@ import { FirestorePermissionError } from "@/firebase/errors";
 
 
 export default function NewChallengePage() {
-  const [title, setTitle] = useState("");
-  const [language, setLanguage] = useState("");
-  const [description, setDescription] = useState("");
-  const [testCases, setTestCases] = useState("");
+  const [title, setTitle] = useState("Sumar dos números en JavaScript");
+  const [language, setLanguage] = useState("javascript");
+  const [description, setDescription] = useState("Crea una función llamada 'suma' que acepte dos números como parámetros y devuelva su suma.");
+  const [testCases, setTestCases] = useState(`[
+  {
+    "input": [2, 2],
+    "expectedOutput": 4
+  },
+  {
+    "input": [5, -3],
+    "expectedOutput": 2
+  },
+  {
+    "input": [100, 200],
+    "expectedOutput": 300
+  }
+]`);
   const [allowInteractive, setAllowInteractive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -62,6 +75,18 @@ export default function NewChallengePage() {
       });
       return;
     }
+
+    try {
+        JSON.parse(testCases);
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "Error en los Casos de Prueba",
+            description: "El formato de los casos de prueba no es un JSON válido. Por favor, corrígelo.",
+        });
+        return;
+    }
+
 
     setIsSaving(true);
 
@@ -89,7 +114,6 @@ export default function NewChallengePage() {
     } catch (serverError: any) {
         console.error("Error saving challenge: ", serverError);
 
-        // This creates the rich error for the developer overlay
         const permissionError = new FirestorePermissionError({
             path: 'challenges',
             operation: 'create',
@@ -97,14 +121,12 @@ export default function NewChallengePage() {
         });
         errorEmitter.emit('permission-error', permissionError);
 
-        // This shows a user-friendly toast
         toast({
             variant: "destructive",
             title: "Error al Guardar",
             description: `No se pudo guardar el desafío. Verifica que tienes el rol correcto (Profesor o Admin).`,
         });
     } finally {
-        // This is crucial: always stop the loading indicator
         setIsSaving(false);
     }
   };
@@ -185,10 +207,10 @@ export default function NewChallengePage() {
               />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="test-cases">Casos de Prueba</Label>
+              <Label htmlFor="test-cases">Casos de Prueba (JSON)</Label>
               <Textarea
                 id="test-cases"
-                placeholder="Define tus casos de prueba aquí. Puedes usar JSON para entradas/salidas simples, o escribir fragmentos de código para escenarios más complejos (ej. funciones, objetos, estructuras de datos)."
+                placeholder='Define tus casos de prueba como un array de JSON. Ejemplo: [{"input": [1, 2], "expectedOutput": 3}, {"input": [-1, 1], "expectedOutput": 0}]'
                 className="min-h-32 font-mono"
                 value={testCases}
                 onChange={(e) => setTestCases(e.target.value)}
@@ -200,7 +222,7 @@ export default function NewChallengePage() {
                   checked={allowInteractive}
                   onCheckedChange={setAllowInteractive}
                 />
-                <Label htmlFor="interactive-mode">Permitir APIs interactivas (ej. prompt, alert, input)</Label>
+                <Label htmlFor="interactive-mode">Permitir APIs interactivas (ej. prompt, alert)</Label>
             </div>
           </div>
         </CardContent>
