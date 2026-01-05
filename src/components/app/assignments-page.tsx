@@ -48,18 +48,27 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     );
   }
 
+  console.log('🔍 User Profile:', {
+    uid: userProfile.uid,
+    role: userProfile.role,
+    groupId: userProfile.groupId,
+    email: userProfile.email
+  });
+
   const assignmentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
 
     const assignmentsRef = collection(firestore, 'assignments');
 
-    // Profesores y admin ven todo (sin filtros para evitar problemas de índices)
+    // Profesores y admin ven todo
     if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
-      return assignmentsRef;
+      console.log('👤 Admin/Teacher: querying all assignments');
+      return query(assignmentsRef); // ← Cambio importante: usar query()
     }
 
     // Estudiantes: buscar por su groupId si lo tienen
     if (userProfile.groupId) {
+      console.log('🎓 Student: querying assignments for groupId:', userProfile.groupId);
       return query(
         assignmentsRef,
         where('targetId', '==', userProfile.groupId)
@@ -67,6 +76,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     }
 
     // Si no tiene grupo, buscar por uid individual
+    console.log('🎓 Student: querying assignments for uid:', userProfile.uid);
     return query(
       assignmentsRef,
       where('targetId', '==', userProfile.uid)
@@ -79,6 +89,8 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
   const assignments = useMemo(() => {
     if (!assignmentsRaw) return [];
     
+    console.log('📋 Raw assignments:', assignmentsRaw);
+    
     return [...assignmentsRaw].sort((a, b) => {
       const dateA = a.assignedAt?.toDate?.() || new Date(a.assignedAt || 0);
       const dateB = b.assignedAt?.toDate?.() || new Date(b.assignedAt || 0);
@@ -86,6 +98,13 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     });
   }, [assignmentsRaw]);
 
+  console.log('✅ Final assignments:', {
+    isLoading,
+    error: error?.message,
+    rawCount: assignmentsRaw?.length,
+    sortedCount: assignments?.length,
+    assignments: assignments
+  });
 
   const formatDate = (timestamp: any) => {
     let date: Date;
@@ -136,7 +155,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
           {error.message}
           <br />
           <span className="text-xs mt-2 block">
-            GroupId: {userProfile.groupId || 'No asignado'} | UID: {userProfile.uid}
+            GroupId: {userProfile.groupId || 'No asignado'} | Role: {userProfile.role}
           </span>
         </AlertDescription>
       </Alert>
@@ -152,7 +171,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
           </h1>
           <p className="text-muted-foreground">
             {userProfile.role === 'STUDENT' 
-              ? `Completa tus desafíos antes de la fecha límite. ${userProfile.groupId ? `Grupo: ${userProfile.groupId.slice(-6)}` : 'Sin grupo asignado'}`
+              ? `Completa tus desafíos antes de la fecha límite.${userProfile.groupId ? ` Grupo: ...${userProfile.groupId.slice(-6)}` : ' Sin grupo'}`
               : 'Gestiona las asignaciones de tus estudiantes.'
             }
           </p>
@@ -176,7 +195,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
               {canCreate 
                 ? 'Crea una nueva asignación para verla aquí.' 
                 : userProfile.groupId 
-                  ? `Buscando asignaciones para el grupo: ${userProfile.groupId}`
+                  ? `Buscando asignaciones para tu grupo`
                   : 'Cuando un profesor te asigne un desafío, aparecerá aquí.'
               }
             </p>
