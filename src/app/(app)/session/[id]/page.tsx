@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from 'react';
-import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
+import { analyzeStudentActivity, AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, type DocumentData } from 'firebase/firestore';
@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 type TestCaseStatus = "pending" | "passed" | "failed";
 
-type TestCase = {
+type TestCaseResult = {
   input: any;
   expectedOutput: any;
   status: TestCaseStatus;
@@ -48,7 +48,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
   const { data: challenge, isLoading: isLoadingChallenge } = useDoc<DocumentData>(challengeRef);
 
-  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [testCases, setTestCases] = useState<TestCaseResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -94,91 +94,54 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending', actualOutput: undefined })));
 
     toast({
-      title: "Ejecutando Análisis...",
-      description: "El código y la actividad del estudiante están siendo analizados.",
+      title: "Ejecutando Análisis y Evaluación...",
+      description: "La IA está analizando el código y evaluando los casos de prueba.",
     });
 
     try {
-      // 1. AI anti-cheating analysis
-      const analysisResult = await analyzeStudentActivity({
+      // AI-driven analysis and evaluation
+      const result: AIAntiCheatingOutput = await analyzeStudentActivity({
         studentCode: currentCode,
         examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
+        testCases: challenge.testCases,
         allowInteractiveApis: challenge.allowInteractiveApis,
       });
 
       setAiReport({
-        risk: analysisResult.riskAssessment,
-        report: analysisResult.report
+        risk: result.riskAssessment,
+        report: result.report
       });
+
+      setTestCases(result.testCaseResults);
       
-      const isHighRisk = analysisResult.riskAssessment.toLowerCase() !== 'low';
+      const isHighRisk = result.riskAssessment.toLowerCase() !== 'low';
+      const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
 
       if (isHighRisk) {
         toast({
           variant: "destructive",
-          title: `Riesgo de Trampa Detectado: ${analysisResult.riskAssessment}`,
+          title: `Riesgo de Trampa Detectado: ${result.riskAssessment}`,
           description: "La IA ha marcado una posible irregularidad. Revisa el reporte.",
+        });
+      } else if (!allTestsPassed) {
+        toast({
+            variant: "destructive",
+            title: "Pruebas Fallidas",
+            description: "Algunos casos de prueba no pasaron. La IA ha evaluado la lógica.",
         });
       } else {
          toast({
-          title: "Análisis de IA Completo",
-          description: "No se detectaron riesgos significativos.",
+          title: "¡Pruebas Superadas!",
+          description: "La IA ha determinado que tu lógica es correcta para todos los casos.",
         });
       }
-      
-      // 2. Execute Test Cases if risk is not high
-      if (!isHighRisk) {
-        let allTestsPassed = true;
-        const updatedTestCases = testCases.map(tc => {
-            try {
-                // This is a sandboxed-like execution. `new Function()` is safer than `eval()`.
-                // It creates a function from the student's code string.
-                // We assume the challenge requires a function with a specific name, e.g., 'suma'.
-                const studentFunction = new Function(`${currentCode}; return suma;`)();
-                
-                // We call the student's function with the test case input.
-                // The '...' spread operator handles multiple arguments.
-                const actualOutput = studentFunction(...tc.input);
 
-                // Simple comparison. For objects/arrays, a deep equal would be better.
-                const passed = JSON.stringify(actualOutput) === JSON.stringify(tc.expectedOutput);
-
-                if (!passed) allTestsPassed = false;
-                
-                return {
-                    ...tc,
-                    status: passed ? 'passed' : 'failed',
-                    actualOutput: actualOutput
-                };
-
-            } catch (e: any) {
-                console.error("Test case execution error:", e);
-                allTestsPassed = false;
-                return { ...tc, status: 'failed', actualOutput: e.message };
-            }
-        });
-        
-        setTestCases(updatedTestCases);
-
-        if (allTestsPassed) {
-            toast({
-                title: "¡Pruebas Superadas!",
-                description: "Todos los casos de prueba han pasado.",
-            });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Pruebas Fallidas",
-                description: "Algunos casos de prueba no pasaron. Revisa los resultados.",
-            });
-        }
-      }
     } catch (error) {
-      console.error("AI analysis or test execution failed:", error);
+      console.error("AI analysis and evaluation failed:", error);
       toast({
         variant: "destructive",
-        title: "Error en la Ejecución",
-        description: "No se pudo completar el análisis o la ejecución de las pruebas.",
+        title: "Error en la Evaluación",
+        description: "No se pudo completar el análisis de la IA.",
       });
     } finally {
         setIsRunning(false);
@@ -346,7 +309,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                     </div>
                 </div>
                 <Button className="w-full" onClick={handleRunCode} disabled={isRunning || isLoadingChallenge}>
-                    {isRunning ? "Ejecutando..." : <><Play className="mr-2 h-4 w-4" /> Ejecutar Código y Probar</>}
+                    {isRunning ? "Evaluando con IA..." : <><Play className="mr-2 h-4 w-4" /> Evaluar con IA</>}
                 </Button>
             </div>
         </Card>
