@@ -17,7 +17,7 @@ type Assignment = {
     challengeId: string;
     targetId: string;
     targetType: 'student' | 'group';
-    dueDate: { seconds: number; nanoseconds: number; } | Date; // Firestore timestamp or Date object
+    dueDate: any; // Firestore timestamp or Date object
 };
 
 export function AssignmentCard({ assignment }: { assignment: Assignment }) {
@@ -42,14 +42,21 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
         router.push(`/session/${assignment.challengeId}`);
     };
 
-    const formatDate = (date: { seconds: number; nanoseconds: number; } | Date) => {
+    const formatDate = (date: any) => {
+        if (!date) return "Sin fecha límite";
+        // If it's a Firestore Timestamp object, it will have a toDate method
+        if (typeof date.toDate === 'function') {
+            return format(date.toDate(), "PPP", { locale: es });
+        }
+        // If it's a plain object with seconds/nanoseconds
+        if (date.seconds) {
+            return format(new Date(date.seconds * 1000), "PPP", { locale: es });
+        }
+        // If it's already a Date object
         if (date instanceof Date) {
             return format(date, "PPP", { locale: es });
         }
-        if (date && date.seconds) {
-            return format(new Date(date.seconds * 1000), "PPP", { locale: es });
-        }
-        return "Sin fecha límite";
+        return "Fecha inválida";
     };
 
     if (isLoading) {

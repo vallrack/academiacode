@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, or, type DocumentData, type Query } from 'firebase/firestore';
+import { collection, query, where, or, type DocumentData, type Query, type WhereFilterOp } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
-import { AssignmentCard } from './assignment-card'; // We will create this component
+import { AssignmentCard } from './assignment-card';
 
 type Assignment = {
     id: string;
@@ -20,16 +20,23 @@ export function StudentDashboard({ userProfile }: { userProfile: DocumentData })
     const firestore = useFirestore();
 
     const assignmentsQuery = useMemoFirebase(() => {
-        if (!firestore || !userProfile?.uid || !userProfile?.groupId) return null;
+        if (!firestore || !userProfile?.uid) return null;
         
-        // Find assignments where the target is either the student's ID or their group's ID
+        // Build the conditions for the 'or' query
+        const conditions: [string, WhereFilterOp, any][] = [
+            ['targetId', '==', userProfile.uid]
+        ];
+
+        // Only add the group condition if a groupId exists on the profile
+        if (userProfile.groupId) {
+            conditions.push(['targetId', '==', userProfile.groupId]);
+        }
+
         return query(
             collection(firestore, "assignments"),
-            or(
-                where("targetId", "==", userProfile.uid),
-                where("targetId", "==", userProfile.groupId)
-            )
+            or(...conditions.map(([field, op, value]) => where(field, op, value)))
         ) as Query<Assignment & DocumentData>;
+
     }, [firestore, userProfile]);
 
     const { data: assignments, loading } = useCollection(assignmentsQuery);
