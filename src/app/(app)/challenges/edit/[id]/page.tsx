@@ -77,9 +77,10 @@ export default function EditChallengePage() {
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Wait for firestore and user to be available
+    if (!firestore || !user) return null;
     return collection(firestore, 'users') as Query<Student & DocumentData>;
-  }, [firestore]);
+  }, [firestore, user]); // Add user dependency
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   useEffect(() => {
@@ -344,5 +345,3 @@ export default function EditChallengePage() {
     </div>
   );
 }
-
-    
