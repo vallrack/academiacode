@@ -1,3 +1,6 @@
+
+"use client";
+
 import Image from 'next/image';
 import { CodeXml, FileText, Mic, MonitorPlay, PanelRight, Play, Share2, ShieldAlert, Video } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -8,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useToast } from "@/hooks/use-toast";
 
 const studentCode = `function twoSum(nums, target) {
   const map = new Map();
@@ -22,6 +26,7 @@ const studentCode = `function twoSum(nums, target) {
 };`;
 
 export default function SessionPage({ params }: { params: { id: string } }) {
+  const { toast } = useToast();
   const student = {
     name: "Alice Johnson",
     avatarId: "student-avatar-1",
@@ -29,6 +34,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const studentAvatar = PlaceHolderImages.find(p => p.id === student.avatarId);
   const instructorAvatar = PlaceHolderImages.find(p => p.id === 'user-avatar');
 
+  const handleRunCode = () => {
+    toast({
+      title: "Ejecutando Pruebas",
+      description: "El código del estudiante se está ejecutando contra los casos de prueba.",
+    });
+  };
 
   return (
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
@@ -121,10 +132,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                     <div className="flex items-center justify-between"><span className="font-mono">Entrada: [3,3], 6</span><Badge variant="destructive">Falló</Badge></div>
                 </div>
              </div>
-             <Button className="w-full"><Play className="mr-2 h-4 w-4" /> Ejecutar Código y Probar</Button>
+             <Button className="w-full" onClick={handleRunCode}><Play className="mr-2 h-4 w-4" /> Ejecutar Código y Probar</Button>
           </div>
         </Card>
       </div>
     </div>
   );
 }
+
+    
