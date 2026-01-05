@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper function to check user roles
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+    }
+    
+    function isTeacherOrAdmin(uid) {
+      let role = getUserRole(uid);
+      return role == 'TEACHER' || role == 'ADMIN';
+    }
+
+    // Rules for user profiles
+    match /users/{userId} {
+      // Any authenticated user can read a profile (e.g., to see names)
+      allow read: if request.auth != null;
+      
+      // Only the user themselves or an admin can create or update their profile
+      allow write: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
+    }
+    
+    // Rules for challenges
+    match /challenges/{challengeId} {
+      // Any authenticated user can read challenges
+      allow read: if request.auth != null;
+      
+      // Only teachers or admins can create, update, or delete challenges
+      allow write: if request.auth != null && isTeacherOrAdmin(request.auth.uid);
+    }
+    
+    // Rules for student challenge attempts
+    match /users/{userId}/challengeAttempts/{attemptId} {
+        // A user can read their own attempts. Teachers/Admins can read any attempt.
+        allow read: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
+
+        // A student can create or update their own attempt.
+        // This covers starting, pausing, and finishing a challenge.
+        allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

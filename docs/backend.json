@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile in the system.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The user's unique ID from Firebase Auth."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the user's profile picture."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role in the system.",
+          "enum": ["STUDENT", "TEACHER", "ADMIN"]
+        }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "Represents a coding challenge for students.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the challenge."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the challenge."
+        },
+        "language": {
+          "type": "string",
+          "description": "The programming language for the challenge."
+        },
+        "testCases": {
+          "type": "string",
+          "description": "Test cases for the challenge, can be in various formats."
+        },
+        "allowInteractiveApis": {
+          "type": "boolean",
+          "description": "Whether the challenge allows interactive APIs like prompt() or alert()."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the challenge.",
+          "enum": ["draft", "published", "archived"]
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID of the user who created the challenge."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the challenge was created."
+        }
+      },
+      "required": ["title", "description", "language", "status", "createdBy", "createdAt"]
+    },
+    "ChallengeAttempt": {
+      "title": "Challenge Attempt",
+      "description": "Represents a student's attempt at a challenge.",
+      "type": "object",
+      "properties": {
+        "challengeId": {
+          "type": "string"
+        },
+        "studentId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["in-progress", "paused", "completed"]
+        },
+        "code": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["challengeId", "studentId", "status", "startedAt"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores public profiles for all users."
+    },
+    "/challenges/{challengeId}": {
+      "schema": { "$ref": "#/entities/Challenge" },
+      "description": "Stores all coding challenges created by teachers or admins."
+    },
+    "/users/{userId}/challengeAttempts/{attemptId}": {
+        "schema": { "$ref": "#/entities/ChallengeAttempt" },
+        "description": "Stores a student's specific attempt at a challenge."
+    }
+  }
+}
