@@ -1,36 +1,44 @@
 #!/bin/bash
-# Este script inicializa un repositorio de Git, añade los archivos y los sube a tu repositorio remoto.
+# Este script inicializa un repositorio de Git, añade todos los archivos del proyecto y los sube a tu repositorio remoto.
 
 echo "Iniciando el proceso para subir a GitHub..."
 
-# 1. Añade una línea al README para el commit inicial (si es necesario)
-# La línea que proporcionaste ya está en el comando de commit.
-# Si el README.md ya existe y tiene contenido, este paso es para asegurar
-# que el primer commit tenga algo que registrar.
-echo "# academiacode" >> README.md
+# Verifica si el directorio .git ya existe
+if [ -d ".git" ]; then
+  echo "El repositorio Git ya ha sido inicializado."
+else
+  # 1. Inicializa el repositorio de Git
+  git init
+  echo "Repositorio Git inicializado."
+fi
 
-# 2. Inicializa el repositorio de Git
-git init
-echo "Repositorio Git inicializado."
-
-# 3. Añade todos los archivos al área de preparación
-# Usaremos 'git add .' para añadir todos los archivos del proyecto, no solo el README.
+# 2. Añade todos los archivos al área de preparación
 git add .
-echo "Todos los archivos añadidos al área de preparación."
+echo "Todos los archivos del proyecto han sido añadidos al área de preparación."
 
-# 4. Realiza el primer commit
-git commit -m "first commit"
-echo "Primer commit realizado."
+# 3. Realiza el primer commit (solo si hay cambios para commitear)
+if [ -n "$(git status --porcelain)" ]; then
+  git commit -m "feat: Initial project structure for AcademiaCode"
+  echo "Commit inicial realizado."
+else
+  echo "No hay cambios para commitear."
+fi
 
-# 5. Cambia el nombre de la rama a 'main'
+# 4. Cambia el nombre de la rama a 'main'
 git branch -M main
 echo "Rama principal renombrada a 'main'."
 
-# 6. Añade el repositorio remoto
-git remote add origin https://github.com/vallrack/academiacode.git
-echo "Repositorio remoto 'origin' añadido."
+# 5. Añade el repositorio remoto (si no existe ya)
+if ! git remote | grep -q "origin"; then
+  git remote add origin https://github.com/vallrack/academiacode.git
+  echo "Repositorio remoto 'origin' añadido."
+else
+  echo "El repositorio remoto 'origin' ya existe."
+  git remote set-url origin https://github.com/vallrack/academiacode.git
+  echo "URL del repositorio remoto 'origin' actualizada."
+fi
 
-# 7. Sube los cambios a la rama 'main'
+# 6. Sube los cambios a la rama 'main'
 echo "Subiendo los cambios a GitHub..."
 git push -u origin main
 
