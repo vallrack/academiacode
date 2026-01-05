@@ -1,15 +1,22 @@
+
+'use client';
+
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import Link from "next/link";
+
 
 export default function StudentsPage() {
   return (
     <div className="flex flex-col gap-6">
         <div className="flex items-center">
             <h1 className="text-lg font-semibold md:text-2xl">Estudiantes</h1>
-            <Button className="ml-auto">
-                <PlusCircle className="mr-2 h-4 w-4"/>
-                Añadir Estudiante
+            <Button className="ml-auto" asChild>
+                <Link href="/users/new">
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Añadir Estudiante
+                </Link>
             </Button>
         </div>
         <Card>
@@ -26,7 +33,9 @@ export default function StudentsPage() {
                 <p className="text-sm text-muted-foreground">
                   Añade estudiantes para empezar a asignar desafíos.
                 </p>
-                <Button className="mt-4">Añadir Estudiante</Button>
+                <Button className="mt-4" asChild>
+                    <Link href="/users/new">Añadir Estudiante</Link>
+                </Button>
               </div>
             </div>
         </CardContent>

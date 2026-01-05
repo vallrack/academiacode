@@ -123,7 +123,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow list: if isTeacherOrAdmin();
       allow get: if isOwner(userId) || isTeacherOrAdmin();
-      allow create: if isOwner(userId) || request.auth == null; 
+      allow create: if isOwner(userId) || request.auth == null || isAdmin(); 
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId) || isAdmin();
     }
@@ -240,5 +240,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

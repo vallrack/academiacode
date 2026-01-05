@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, UserCog } from "lucide-react";
+import { MoreHorizontal, Trash2, UserCog, PlusCircle, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
@@ -54,6 +57,7 @@ const roleMap: Record<UserRole, string> = {
 export default function UsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -130,7 +134,15 @@ export default function UsersPage() {
   return (
     <>
       <div className="flex flex-col gap-6">
-        <h1 className="text-lg font-semibold md:text-2xl">Gestión de Usuarios</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <h1 className="text-lg font-semibold md:text-2xl">Gestión de Usuarios</h1>
+             <Button className="w-full sm:w-auto" asChild>
+                <Link href="/users/new">
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Añadir Usuario
+                </Link>
+            </Button>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Todos los Usuarios</CardTitle>
@@ -176,6 +188,11 @@ export default function UsersPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                               <DropdownMenuItem onSelect={() => router.push(`/users/edit/${user.id}`)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                <span>Modificar</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <UserCog className="mr-2 h-4 w-4" />
@@ -237,5 +254,3 @@ export default function UsersPage() {
     </>
   );
 }
-
-    
