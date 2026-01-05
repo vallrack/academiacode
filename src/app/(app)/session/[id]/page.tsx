@@ -53,6 +53,9 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [isRunning, setIsRunning] = useState(false);
   const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // This would come from the challenge data in a real app
+  const allowInteractiveApis = params.id === 'interactive-challenge'; 
 
   const handleRunCode = async () => {
     setIsRunning(true);
@@ -69,6 +72,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       const analysisResult = await analyzeStudentActivity({
         studentCode,
         examDetails: "Challenge: Two Sum. Allowed language: JavaScript. No external libraries allowed.",
+        allowInteractiveApis: allowInteractiveApis,
         // videoDataUri and screenDataUri can be added here in a real implementation
       });
 

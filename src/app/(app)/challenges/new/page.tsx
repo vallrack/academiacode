@@ -24,12 +24,14 @@ import {
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { Switch } from "@/components/ui/switch";
 
 export default function NewChallengePage() {
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
   const [testCases, setTestCases] = useState("");
+  const [allowInteractive, setAllowInteractive] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -43,7 +45,7 @@ export default function NewChallengePage() {
       return;
     }
 
-    console.log({ title, language, description, testCases });
+    console.log({ title, language, description, testCases, allowInteractive });
     toast({
       title: "¡Desafío Guardado!",
       description: `El desafío "${title}" ha sido guardado.`,
@@ -135,6 +137,14 @@ export default function NewChallengePage() {
                 value={testCases}
                 onChange={(e) => setTestCases(e.target.value)}
               />
+            </div>
+             <div className="flex items-center space-x-2">
+                <Switch 
+                  id="interactive-mode"
+                  checked={allowInteractive}
+                  onCheckedChange={setAllowInteractive}
+                />
+                <Label htmlFor="interactive-mode">Permitir APIs interactivas (ej. prompt, alert, input)</Label>
             </div>
           </div>
         </CardContent>

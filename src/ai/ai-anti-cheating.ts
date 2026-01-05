@@ -34,6 +34,7 @@ const AIAntiCheatingInputSchema = z.object({
   examDetails: z
     .string()
     .describe('Details about the exam, including topics covered and allowed resources.'),
+   allowInteractiveApis: z.boolean().optional().describe('Whether to allow browser-specific APIs like prompt() and alert().'),
 });
 
 export type AIAntiCheatingInput = z.infer<typeof AIAntiCheatingInputSchema>;
@@ -63,10 +64,12 @@ const aiAntiCheatingPrompt = ai.definePrompt({
 
   Analyze the student's code and, if available, their video and screen recording. Look for the following indicators:
   
+  {{#unless allowInteractiveApis}}
   In the code:
-  - Use of unauthorized browser-specific APIs like 'prompt()', 'alert()', 'confirm()', 'document.write()'.
+  - Use of unauthorized browser-specific APIs like 'prompt()', 'alert()', 'confirm()', 'document.write()', or console inputs like 'input()'.
   - Attempts to manipulate the DOM or bypass the challenge environment.
   - Excessively complex or obfuscated code that doesn't match the problem's requirements.
+  {{/unless}}
 
   In the video/screen recording:
   - Use of unauthorized devices (e.g., phones, tablets)
@@ -83,7 +86,7 @@ const aiAntiCheatingPrompt = ai.definePrompt({
   {{#if videoDataUri}}Video Recording: {{media url=videoDataUri}}{{/if}}
   {{#if screenDataUri}}Screen Recording: {{media url=screenDataUri}}{{/if}}
 
-  Based on your analysis, provide a detailed report of any potential cheating behaviors detected and an overall risk assessment (low, medium, or high).`,
+  Based on your analysis, provide a detailed report of any potential cheating behaviors detected and an overall risk assessment (low, medium, or high). If interactive APIs are allowed and used, do not flag them as cheating.`,
 });
 
 const aiAntiCheatingFlow = ai.defineFlow(
