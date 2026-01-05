@@ -34,9 +34,9 @@ export default function ChallengesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-        <div className="flex items-center">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Desafíos</h1>
-            <Button className="ml-auto" asChild>
+            <Button className="w-full sm:w-auto" asChild>
                 <Link href="/challenges/new">
                     <PlusCircle className="mr-2 h-4 w-4"/>
                     Nuevo Desafío
@@ -56,42 +56,44 @@ export default function ChallengesPage() {
                     <Skeleton className="h-12 w-full" />
                 </div>
             ) : hasChallenges ? (
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Título</TableHead>
-                            <TableHead>Lenguaje</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead className="text-right">Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {challenges.map((challenge) => (
-                            <TableRow key={challenge.id}>
-                                <TableCell className="font-medium">{challenge.title}</TableCell>
-                                <TableCell>
-                                    <Badge variant="outline">{challenge.language}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={challenge.status === 'published' ? 'secondary' : 'outline'}>
-                                        {challenge.status === 'draft' ? 'Borrador' : challenge.status === 'published' ? 'Publicado' : 'Archivado'}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button size="sm" asChild>
-                                        <Link href={`/session/${challenge.id}`}>
-                                            <Play className="mr-2 h-4 w-4" />
-                                            Comenzar
-                                        </Link>
-                                    </Button>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Título</TableHead>
+                                <TableHead className="hidden sm:table-cell">Lenguaje</TableHead>
+                                <TableHead className="hidden md:table-cell">Estado</TableHead>
+                                <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {challenges.map((challenge) => (
+                                <TableRow key={challenge.id}>
+                                    <TableCell className="font-medium">{challenge.title}</TableCell>
+                                    <TableCell className="hidden sm:table-cell">
+                                        <Badge variant="outline">{challenge.language}</Badge>
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        <Badge variant={challenge.status === 'published' ? 'secondary' : 'outline'}>
+                                            {challenge.status === 'draft' ? 'Borrador' : challenge.status === 'published' ? 'Publicado' : 'Archivado'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button size="sm" asChild>
+                                            <Link href={`/session/${challenge.id}`}>
+                                                <Play className="mr-0 sm:mr-2 h-4 w-4" />
+                                                <span className="hidden sm:inline">Comenzar</span>
+                                            </Link>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
             ) : (
                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16">
-                  <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="flex flex-col items-center gap-1 text-center px-4">
                     <h3 className="text-2xl font-bold tracking-tight">
                       Aún no se han creado desafíos
                     </h3>
@@ -109,4 +111,3 @@ export default function ChallengesPage() {
     </div>
   );
 }
-

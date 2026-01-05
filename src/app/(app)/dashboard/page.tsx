@@ -99,19 +99,21 @@ export default function DashboardPage() {
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : liveSessions.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Estudiante</TableHead>
-                      <TableHead className="hidden sm:table-cell">Desafío</TableHead>
-                      <TableHead className="hidden md:table-cell text-center">Progreso</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* Live sessions would be mapped here */}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Estudiante</TableHead>
+                          <TableHead className="hidden sm:table-cell">Desafío</TableHead>
+                          <TableHead className="hidden md:table-cell text-center">Progreso</TableHead>
+                          <TableHead className="text-right">Acción</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {/* Live sessions would be mapped here */}
+                      </TableBody>
+                    </Table>
+                </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-center p-8 border-2 border-dashed rounded-lg">
                 <Video className="h-12 w-12 text-muted-foreground" />
@@ -122,17 +124,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-              <CardTitle>Calificaciones Recientes</CardTitle>
-              <CardDescription>Envíos de estudiantes calificados recientemente.</CardDescription>
-            </div>
-            <Button asChild size="sm" className="ml-auto gap-1">
-              <Link href="/results">
-                Ver Todo
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </Button>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="grid gap-2">
+                <CardTitle>Calificaciones Recientes</CardTitle>
+                <CardDescription>Envíos de estudiantes calificados recientemente.</CardDescription>
+              </div>
+              <Button asChild size="sm" className="ml-auto gap-1 w-full sm:w-auto">
+                <Link href="/results">
+                  Ver Todo
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+              </Button>
           </CardHeader>
           <CardContent>
              {loading ? (
@@ -141,18 +143,20 @@ export default function DashboardPage() {
                   <Skeleton className="h-10 w-full" />
                 </div>
               ) : recentGrades.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                      <TableRow>
-                          <TableHead>Estudiante</TableHead>
-                          <TableHead>Desafío</TableHead>
-                          <TableHead className="text-right">Calificación</TableHead>
-                      </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* Recent grades would be mapped here */}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Estudiante</TableHead>
+                              <TableHead>Desafío</TableHead>
+                              <TableHead className="text-right">Calificación</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {/* Recent grades would be mapped here */}
+                      </TableBody>
+                    </Table>
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 text-center p-8 border-2 border-dashed rounded-lg">
                   <Users className="h-12 w-12 text-muted-foreground" />

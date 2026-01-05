@@ -156,12 +156,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="flex flex-col gap-6 lg:col-span-2">
         <Tabs defaultValue="ide" className="flex h-full flex-col">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="ide"><CodeXml className="mr-2 h-4 w-4" /> Modo IDE</TabsTrigger>
-              <TabsTrigger value="whiteboard"><MonitorPlay className="mr-2 h-4 w-4" /> Pizarra</TabsTrigger>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
+            <TabsList className='w-full sm:w-auto'>
+              <TabsTrigger value="ide" className='flex-1'><CodeXml className="mr-2 h-4 w-4" /> Modo IDE</TabsTrigger>
+              <TabsTrigger value="whiteboard" className='flex-1'><MonitorPlay className="mr-2 h-4 w-4" /> Pizarra</TabsTrigger>
             </TabsList>
-            <Badge variant="outline" className="flex items-center gap-2 border-yellow-500/50 text-yellow-600">
+            <Badge variant="outline" className="flex items-center gap-2 border-yellow-500/50 text-yellow-600 w-full sm:w-auto justify-center">
                 <ShieldAlert className="h-4 w-4" />
                 <span>Supervisión por IA Activa</span>
             </Badge>
@@ -175,14 +175,14 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                     <Textarea
                         ref={codeTextareaRef}
                         defaultValue={studentCodeExample}
-                        className="h-full resize-none border-0 bg-muted/50 font-mono text-sm focus-visible:ring-0"
+                        className="h-full min-h-[300px] resize-none border-0 bg-muted/50 font-mono text-sm focus-visible:ring-0"
                         aria-label="Editor de Código"
                     />
                 </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="whiteboard" className="mt-4 flex-grow">
-            <Card className="h-full">
+            <Card className="h-full min-h-[400px]">
               <CardContent className="flex h-full items-center justify-center rounded-lg bg-muted/50 p-6">
                 <p className="text-muted-foreground">Área de pizarra para dibujo colaborativo.</p>
               </CardContent>
@@ -203,15 +203,15 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                     <CardDescription>En línea</CardDescription>
                 </div>
             </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-center gap-2">
+            <CardContent className="grid grid-cols-2 gap-2">
                 {instructorAvatar && (
-                    <div className="relative h-24 w-40 overflow-hidden rounded-md bg-muted">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
                         <Image fill src={instructorAvatar.imageUrl} className="object-cover" alt="Video del Instructor" data-ai-hint={instructorAvatar.imageHint}/>
                         <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-xs text-white">Dr. Evans (Tú)</div>
                     </div>
                 )}
                  {studentAvatar && (
-                    <div className="relative h-24 w-40 overflow-hidden rounded-md bg-muted">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
                         <Image fill src={studentAvatar.imageUrl} className="object-cover" alt="Video del Estudiante" data-ai-hint={studentAvatar.imageHint}/>
                         <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-xs text-white">{student.name}</div>
                     </div>
