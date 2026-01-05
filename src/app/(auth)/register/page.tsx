@@ -57,9 +57,13 @@ export default function RegisterPage() {
 
       toast({
         title: '¡Cuenta Creada!',
-        description: 'Te has registrado correctamente.',
+        description: 'Te has registrado correctamente. Serás redirigido.',
       });
-      router.push('/dashboard');
+      
+      // Redirect after a short delay to allow the toast to be seen
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
 
     } catch (error: any) {
       console.error('Error creando cuenta:', error);
@@ -68,9 +72,10 @@ export default function RegisterPage() {
         title: 'Error al registrarse',
         description: error.message || 'No se pudo crear la cuenta.',
       });
-    } finally {
-      setLoading(false);
-    }
+      setLoading(false); // Make sure loading is stopped on error
+    } 
+    // We don't set loading to false in the `finally` block anymore,
+    // because we want the button to stay disabled until redirection happens.
   };
 
   return (
