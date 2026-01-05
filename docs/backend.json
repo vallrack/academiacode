@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -26,6 +27,10 @@
         "role": {
           "type": "string",
           "description": "Role of the user (e.g., Admin, Instructor, Student)."
+        },
+        "groupId": {
+            "type": "string",
+            "description": "Reference to the Group the student belongs to. (Relationship: Group 1:N User)"
         }
       },
       "required": [
@@ -34,6 +39,31 @@
         "lastName",
         "email",
         "role"
+      ]
+    },
+    "Group": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Group",
+      "type": "object",
+      "description": "Represents a group or class of students.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Group entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the group (e.g., 'ADS1')."
+        },
+        "schedule": {
+          "type": "string",
+          "description": "The schedule for the group (e.g., 'Diurna', 'Nocturna')."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "schedule"
       ]
     },
     "Course": {
@@ -275,6 +305,22 @@
             {
               "name": "userId",
               "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/groups/{groupId}",
+        "definition": {
+          "entityName": "Group",
+          "schema": {
+            "$ref": "#/backend/entities/Group"
+          },
+          "description": "Stores student groups or classes.",
+          "params": [
+            {
+              "name": "groupId",
+              "description": "The unique identifier of the group."
             }
           ]
         }

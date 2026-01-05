@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { useAuth, useFirestore } from '@/firebase';
+import { doc, setDoc, collection, type DocumentData, type Query } from 'firebase/firestore';
+import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,17 +15,39 @@ import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/app/logo';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type Group = {
+  id: string;
+  name: string;
+  schedule: string;
+};
+
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [adminKey, setAdminKey] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
+  
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+
+  const isStudentRegistration = !adminKey;
+
+  const groupsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "groups") as Query<Group & DocumentData>;
+  }, [firestore]);
+
+  const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,10 +73,20 @@ export default function RegisterPage() {
         role = 'TEACHER';
       }
       
+      if (role === 'STUDENT' && !selectedGroup) {
+        toast({
+            variant: 'destructive',
+            title: 'Campo Requerido',
+            description: 'Por favor, selecciona un grupo para continuar.',
+        });
+        setLoading(false);
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const userProfileData = {
+      const userProfileData: any = {
         uid: user.uid,
         email: user.email,
         displayName: displayName || user.email?.split('@')[0] || '',
@@ -62,9 +94,12 @@ export default function RegisterPage() {
         role: role
       };
 
+      if (role === 'STUDENT') {
+        userProfileData.groupId = selectedGroup;
+      }
+
       const userDocRef = doc(firestore, 'users', user.uid);
 
-      // Create user profile in Firestore. This will now succeed due to updated rules.
       await setDoc(userDocRef, userProfileData);
 
       toast({
@@ -82,7 +117,6 @@ export default function RegisterPage() {
           description: "La contraseña debe tener al menos 6 caracteres o el correo ya está en uso.",
         });
       } else {
-        // This will catch Firestore permission errors if they still happen
         const permissionError = new FirestorePermissionError({
             path: `users/${auth.currentUser?.uid || 'new-user'}`,
             operation: 'create',
@@ -159,6 +193,36 @@ export default function RegisterPage() {
               onChange={(e) => setAdminKey(e.target.value)}
             />
           </div>
+
+          {isStudentRegistration && (
+            <div className="grid gap-2">
+                <Label htmlFor="group">Grupo</Label>
+                {loadingGroups ? (
+                    <Skeleton className="h-10 w-full" />
+                ) : (
+                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                        <SelectTrigger id="group" aria-label="Selecciona un grupo">
+                            <SelectValue placeholder="Selecciona tu grupo y jornada" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {groups && groups.length > 0 ? (
+                                groups.map(group => (
+                                    <SelectItem key={group.id} value={group.id}>
+                                        {group.name} - {group.schedule}
+                                    </SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="no-groups" disabled>
+                                    No hay grupos disponibles
+                                </SelectItem>
+                            )}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
+          )}
+
+
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
           </Button>

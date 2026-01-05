@@ -1,0 +1,243 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * Core Philosophy:
+     * This ruleset enforces a strict ownership model centered around Users, with a
+     * distinction between private user data and shared educational content. The
+     * core principle is that users have complete control over their personal data
+     * (profiles, submissions, payments), while content creators (Instructors)
+     * retain full control over the educational materials they publish.
+     *
+     * Data Structure:
+     * The data is organized into two main branches:
+     * 1. /users/{userId}: This path contains all data private to a specific user,
+     *    such as their profile, submissions, payments, and subscriptions. Access
+     *    to these subcollections is strictly limited to the owner.
+     * 2. /courses/{courseId}: This top-level collection stores publicly-readable
+     *    course information. Course content like assignments and their test cases
+     *    are nested within their respective course.
+     *
+     * Key Security Decisions:
+     * - User Privacy: Direct listing of the top-level `/users` collection is
+     *   disallowed to protect user privacy.
+     * - User Data Ownership: All data under `/users/{userId}` is strictly owned
+     *   by that user. No other user, including instructors or admins (by default),
+     *   can read or write this data.
+     * - Instructor Ownership: Instructors own the `/courses` documents they create,
+     *   identified by the `instructorId` field. They have exclusive write access
+     *   to their courses and all nested content (assignments, testcases).
+     * - Public Read Access: Course and assignment information is readable by any
+     *   authenticated user to allow for browsing and discovery. Writes are always
+     *   restricted to the content owner.
+     * - Submission Access Limitation: Based on the provided data structure, a
+     *   student's submission is stored under their private `/users/{userId}` path.
+     *   This means instructors CANNOT read student submissions. For grading, a
+     *   revised data structure like `/courses/{cId}/assignments/{aId}/submissions/{sId}`
+     *   would be necessary. The current rules enforce the specified private structure.
+     *
+     * Denormalization for Authorization:
+     * To ensure fast and simple rules, ownership data is denormalized. The
+     * `/courses` documents contain an `instructorId`. User-specific documents
+     * under `/users/{userId}` contain a `userId` or `studentId`. This avoids
+     * slow and costly `get()` calls for most authorization checks. The only
+     * required `get()` is for securing course subcollections (assignments, testcases)
+     * based on the parent course's `instructorId`.
+     *
+     * Structural Segregation:
+     * Private user data (submissions, payments) is segregated into a user-specific
+     * subcollection, while public-read content (courses, assignments) is in a
+     * separate top-level collection. This separation creates a clear and secure
+     * boundary, making rules simpler and list operations safer.
+     */
+
+    // --------------------------------------------------------------------------
+    // Helper Functions
+    // --------------------------------------------------------------------------
+
+    /**
+     * Verifies that a user is signed in.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Verifies that the currently authenticated user's UID matches the given userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isTeacherOrAdmin() {
+      // Check if the user's role is SUPER_ADMIN or TEACHER.
+      // This requires a read to the user's own profile document.
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'TEACHER'
+      );
+    }
+    
+    function isAdmin() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN';
+    }
+
+    /**
+     * Verifies ownership for an existing document. Used for update/delete.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Checks if the user is the instructor of a specific course by reading the
+     * course document.
+     */
+    function isCourseInstructor(courseId) {
+      return isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
+    }
+
+    /**
+     * Checks if the user is the instructor for an existing course document.
+     * Used for update/delete on subcollection items.
+     */
+    function isExistingCourseInstructor(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId));
+      return isSignedIn() && course != null && course.data.instructorId == request.auth.uid;
+    }
+
+    // --------------------------------------------------------------------------
+    // User Data Rules
+    // --------------------------------------------------------------------------
+    
+    /**
+     * @description Governs access to a user's own profile document.
+     * @path /users/{userId}
+     * @allow (get, update) A user (auth.uid: 'user123') reading or updating their own document at `/users/user123`.
+     * @allow (create) A new user (auth.uid: 'user123') creating their own profile document at `/users/user123`.
+     * @deny (get, update, delete) A different user ('user456') trying to access the document at `/users/user123`.
+     * @principle Enforces strict data ownership, allowing users to manage only their own profile.
+     */
+    match /users/{userId} {
+      // Allow admins/teachers to list users, but individual users can only get their own document.
+      allow list: if isTeacherOrAdmin();
+      allow get: if isOwner(userId) || isTeacherOrAdmin();
+      allow create: if isOwner(userId); // A user can create their own profile.
+      allow update: if isOwner(userId); // A user can update their own profile.
+      allow delete: if isOwner(userId); // A user can delete their own profile.
+    }
+
+    /**
+     * @description Secures a student's assignment submissions. Only the student can access them.
+     * @path /users/{userId}/submissions/{submissionId}
+     * @allow (create, get, list) A student ('user123') managing their own submissions under `/users/user123/submissions`.
+     * @deny (get, list) An instructor trying to read a student's submission at `/users/user123/submissions/{submissionId}`.
+     * @principle Restricts access to a user's own data tree. Ensures submission privacy.
+     */
+    match /users/{userId}/submissions/{submissionId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.studentId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.studentId == resource.data.studentId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secures a user's payment records. Only the user can access them.
+     * @path /users/{userId}/payments/{paymentId}
+     * @allow (create, get, list) A user ('user123') managing their own payment records under `/users/user123/payments`.
+     * @deny (get, list) Any other user trying to access payment records at `/users/user123/payments`.
+     * @principle Restricts access to sensitive financial data within a user's own data tree.
+     */
+    match /users/{userId}/payments/{paymentId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secures a user's subscription information. Only the user can access it.
+     * @path /users/{userId}/subscriptions/{subscriptionId}
+     * @allow (create, get, list) A user ('user123') managing their own subscription under `/users/user123/subscriptions`.
+     * @deny (get, list) Any other user trying to access subscription info at `/users/user123/subscriptions`.
+     * @principle Restricts access to a user's own data tree.
+     */
+    match /users/{userId}/subscriptions/{subscriptionId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    // --------------------------------------------------------------------------
+    // Challenges, Course & Content Rules
+    // --------------------------------------------------------------------------
+    
+    /**
+     * @description Publicly readable challenges, but only writable by admins/teachers.
+     * @path /challenges/{challengeId}
+     */
+    match /challenges/{challengeId} {
+        allow read: if isSignedIn();
+        allow write: if isTeacherOrAdmin();
+    }
+    
+    /**
+     * @description Groups can be read by any authenticated user (for registration),
+     * but only created/modified by a Super Admin.
+     * @path /groups/{groupId}
+     */
+    match /groups/{groupId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    /**
+     * @description Controls access to the top-level courses collection. Courses are public to read.
+     * @path /courses/{courseId}
+     * @allow (get, list) Any signed-in user can read course details.
+     * @allow (create) An instructor (auth.uid: 'instructor123') creating a new course with `instructorId: 'instructor123'`.
+     * @deny (create, update) An instructor trying to create a course and assign it to another user.
+     * @deny (update, delete) A user who is not the instructor trying to modify a course.
+     * @principle Implements "Public Read with Owner-Only Writes" for shared content.
+     */
+    match /courses/{courseId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.instructorId == request.auth.uid;
+      allow update: if isCourseInstructor(courseId) && resource != null && request.resource.data.instructorId == resource.data.instructorId;
+      allow delete: if isCourseInstructor(courseId) && resource != null;
+    }
+
+    /**
+     * @description Controls access to assignments within a course. They are public to read.
+     * @path /courses/{courseId}/assignments/{assignmentId}
+     * @allow (get, list) Any signed-in user can read assignment details.
+     * @allow (create, update, delete) The course instructor managing assignments for their own course.
+     * @deny (create, update, delete) A user who is not the course instructor trying to modify an assignment.
+     * @principle Enforces hierarchical ownership. Permissions are derived from the parent course document.
+     */
+    match /courses/{courseId}/assignments/{assignmentId} {
+      allow get, list: if isSignedIn();
+      allow create: if isCourseInstructor(courseId) && request.resource.data.courseId == courseId;
+      allow update: if isExistingCourseInstructor(courseId) && request.resource.data.courseId == resource.data.courseId;
+      allow delete: if isExistingCourseInstructor(courseId);
+    }
+
+    /**
+     * @description Controls access to test cases for an assignment. They are public to read.
+     * @path /courses/{courseId}/assignments/{assignmentId}/testcases/{testcaseId}
+     * @allow (get, list) Any signed-in user can read the test cases.
+     * @allow (create, update, delete) The course instructor managing test cases for an assignment in their own course.
+     * @deny (create, update, delete) A user who is not the course instructor trying to modify a test case.
+     * @principle Enforces hierarchical ownership. Permissions are derived from the grandparent course document.
+     */
+    match /courses/{courseId}/assignments/{assignmentId}/testcases/{testcaseId} {
+      allow get, list: if isSignedIn();
+      allow create: if isCourseInstructor(courseId) && request.resource.data.assignmentId == assignmentId;
+      allow update: if isExistingCourseInstructor(courseId) && request.resource.data.assignmentId == resource.data.assignmentId;
+      allow delete: if isExistingCourseInstructor(courseId);
+    }
+  }
+}
