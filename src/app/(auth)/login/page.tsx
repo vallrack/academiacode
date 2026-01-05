@@ -38,7 +38,7 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Error al iniciar sesión',
-        description: error.message || 'Por favor, comprueba tus credenciales.',
+        description: error.code === 'auth/invalid-credential' ? 'Las credenciales no son correctas. Por favor, inténtalo de nuevo.' : (error.message || 'Por favor, comprueba tus credenciales.'),
       });
     } finally {
       setLoading(false);
@@ -72,7 +72,8 @@ export default function LoginPage() {
             <Input 
               id="password" 
               type="password" 
-              required 
+              required
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
