@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <FirebaseClientProvider>
       <SidebarProvider>
-        <Sidebar>
+        <Sidebar collapsible="icon">
           <SidebarHeader>
             <div className="p-2">
               <Link href="/dashboard" className="flex items-center gap-2">
@@ -43,9 +43,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
            <AuthState>
             <div className="flex h-full flex-col">
                 <header className="sticky top-0 flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
-                    <div className="md:hidden">
-                        <SidebarTrigger />
-                    </div>
+                    <SidebarTrigger className="hidden md:flex" />
                     <div className="w-full flex-1">
                         {/* Future components like a global search can go here */}
                     </div>
