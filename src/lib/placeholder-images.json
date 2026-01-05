@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-avatar",
+      "description": "User avatar for the logged in user",
+      "imageUrl": "https://images.unsplash.com/photo-1657331017197-061601b1de71?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwcm9maWxlJTIwcGVyc29ufGVufDB8fHx8MTc2NzU0ODAyOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "profile person"
+    },
+    {
+      "id": "student-avatar-1",
+      "description": "Avatar for a female student",
+      "imageUrl": "https://images.unsplash.com/photo-1685539526490-7b7db7f3547e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx3b21hbiUyMHN0dWRlbnR8ZW58MHx8fHwxNzY3NjIxNjQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman student"
+    },
+    {
+      "id": "student-avatar-2",
+      "description": "Avatar for a male student",
+      "imageUrl": "https://images.unsplash.com/photo-1685538856162-fd6d87a1f3ff?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxtYW4lMjBzdHVkZW50fGVufDB8fHx8MTc2NzU5OTU1Mnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man student"
+    },
+    {
+      "id": "student-avatar-3",
+      "description": "Avatar for a student",
+      "imageUrl": "https://images.unsplash.com/photo-1619431667975-e93b820cde63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzdHVkZW50JTIwcGVyc29ufGVufDB8fHx8MTc2NzYyMTY0N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "student person"
+    },
+    {
+      "id": "student-avatar-4",
+      "description": "Avatar for a smiling woman",
+      "imageUrl": "https://images.unsplash.com/photo-1592621385612-4d7129426394?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHNtaWxlfGVufDB8fHx8MTc2NzU3OTc1M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman smile"
+    },
+    {
+      "id": "student-avatar-5",
+      "description": "Avatar for a person's face",
+      "imageUrl": "https://images.unsplash.com/photo-1548544149-4835e62ee5b3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2NzU2NjEzM3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "student-avatar-6",
+      "description": "Avatar for a man's face",
+      "imageUrl": "https://images.unsplash.com/photo-1599834562135-b6fc90e642ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtYW4lMjBmYWNlfGVufDB8fHx8MTc2NzU3NTIyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man face"
+    },
+    {
+      "id": "instructor-video-feed",
+      "description": "Placeholder for instructor video feed",
+      "imageUrl": "https://images.unsplash.com/photo-1613335366222-123b2d17a65d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBwcm9maWxlfGVufDB8fHx8MTc2NzU0MzU2NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person profile"
+    }
+  ]
 }
