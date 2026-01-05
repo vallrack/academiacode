@@ -21,15 +21,16 @@ export function NavItems() {
         const isActive = pathname.startsWith(item.href);
         return (
           <SidebarMenuItem key={item.href}>
-            <Link href={item.href} legacyBehavior passHref>
-              <SidebarMenuButton
-                tooltip={item.label}
-                isActive={isActive}
-              >
+            <SidebarMenuButton
+              asChild
+              tooltip={item.label}
+              isActive={isActive}
+            >
+              <Link href={item.href}>
                 <item.icon />
                 {item.label}
-              </SidebarMenuButton>
-            </Link>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         );
       })}
