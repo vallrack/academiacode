@@ -4,6 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
   
     // Helper function to check user roles
+    // CORRECTED: Access .data.role to get the field value
     function getUserRole(uid) {
       return get(/databases/$(database)/documents/users/$(uid)).data.role;
     }
