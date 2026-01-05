@@ -196,7 +196,7 @@ export default function ChallengesPage() {
                                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                                         <DropdownMenuItem onSelect={() => router.push(`/challenges/edit/${challenge.id}`)}>
                                                             <Pencil className="mr-2 h-4 w-4" />
-                                                            Modificar
+                                                            Modificar y Asignar
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuSub>
@@ -266,3 +266,4 @@ export default function ChallengesPage() {
     </>
   );
 }
+

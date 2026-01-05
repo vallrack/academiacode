@@ -42,9 +42,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow list: if isTeacherOrAdmin();
       allow get: if isOwner(userId) || isTeacherOrAdmin();
-      allow create: if isOwner(userId) || request.auth == null; 
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) || request.auth == null || isAdmin(); 
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
 
       match /submissions/{submissionId} {
         allow read, list: if isOwner(userId);
@@ -66,14 +66,16 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // Grupos (Públicos para lectura, Admin para escritura)
+    // Grupos y Asignaciones
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // "read" permite tanto "get" como "list". 
-      // Si el error persiste, asegúrate de que no haya filtros en tu query de React que violen las reglas.
       allow read: if true; 
       allow write: if isAdmin();
+    }
+
+    match /assignments/{assignmentId} {
+        allow read, write: if isTeacherOrAdmin();
     }
 
     // --------------------------------------------------------------------------
@@ -107,3 +109,4 @@ service cloud.firestore {
     }
   }
 }
+
