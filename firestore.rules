@@ -9,7 +9,6 @@ service cloud.firestore {
     }
     
     function isTeacherOrAdmin(uid) {
-      // This checks if the user document exists and has a valid role.
       let role = getUserRole(uid);
       return role == 'TEACHER' || role == 'ADMIN' || role == 'SUPER_ADMIN';
     }
@@ -20,13 +19,14 @@ service cloud.firestore {
       allow read: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
       
       // An authenticated user can create their own user profile document.
+      // This is crucial for the registration flow.
       allow create: if request.auth != null && request.auth.uid == userId;
 
       // A user can update their own profile. Admins can update any profile.
       allow update: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
       
       // Only a SUPER_ADMIN can delete a user profile.
-      allow delete: if request.auth != null && isTeacherOrAdmin(request.auth.uid) && getUserRole(request.auth.uid) == 'SUPER_ADMIN';
+      allow delete: if request.auth != null && getUserRole(request.auth.uid) == 'SUPER_ADMIN';
     }
     
     match /challenges/{challengeId} {

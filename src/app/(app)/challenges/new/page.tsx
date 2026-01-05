@@ -76,35 +76,37 @@ export default function NewChallengePage() {
       createdAt: serverTimestamp(),
     };
 
-    const challengesCollection = collection(firestore, 'challenges');
-
-    addDoc(challengesCollection, challengeData)
-      .then(() => {
+    try {
+        const challengesCollection = collection(firestore, 'challenges');
+        await addDoc(challengesCollection, challengeData);
+        
         toast({
           title: "¡Desafío Guardado!",
           description: `El desafío "${title}" ha sido guardado correctamente.`,
         });
         router.push("/challenges");
-      })
-      .catch((serverError: any) => {
+
+    } catch (serverError: any) {
         console.error("Error saving challenge: ", serverError);
 
+        // This creates the rich error for the developer overlay
         const permissionError = new FirestorePermissionError({
-            path: challengesCollection.path,
+            path: 'challenges',
             operation: 'create',
             requestResourceData: challengeData,
         });
         errorEmitter.emit('permission-error', permissionError);
 
+        // This shows a user-friendly toast
         toast({
             variant: "destructive",
             title: "Error al Guardar",
             description: `No se pudo guardar el desafío. Verifica que tienes el rol correcto (Profesor o Admin).`,
         });
-      })
-      .finally(() => {
+    } finally {
+        // This is crucial: always stop the loading indicator
         setIsSaving(false);
-      });
+    }
   };
 
   return (

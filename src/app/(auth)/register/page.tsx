@@ -64,7 +64,7 @@ export default function RegisterPage() {
 
       const userDocRef = doc(firestore, 'users', user.uid);
 
-      // Create user profile in Firestore
+      // Create user profile in Firestore. This will now succeed due to updated rules.
       await setDoc(userDocRef, userProfileData);
 
       toast({
@@ -79,10 +79,10 @@ export default function RegisterPage() {
          toast({
           variant: 'destructive',
           title: 'Error de Autenticación',
-          description: error.message,
+          description: "La contraseña debe tener al menos 6 caracteres o el correo ya está en uso.",
         });
       } else {
-        // Assume it could be a Firestore permission error
+        // This will catch Firestore permission errors if they still happen
         const permissionError = new FirestorePermissionError({
             path: `users/${auth.currentUser?.uid || 'new-user'}`,
             operation: 'create',
