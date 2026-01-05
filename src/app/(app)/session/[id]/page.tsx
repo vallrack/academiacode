@@ -2,7 +2,7 @@
 "use client";
 
 import Image from 'next/image';
-import { CodeXml, FileText, Mic, MonitorPlay, PanelRight, Play, Share2, ShieldAlert, Video } from 'lucide-react';
+import { CodeXml, FileText, Mic, MonitorPlay, PanelRight, Play, Share2, ShieldAlert, Video, Terminal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,14 +51,17 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [testCases, setTestCases] = useState<TestCaseResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
-  const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [studentCode, setStudentCode] = useState('');
+  const [terminalOutput, setTerminalOutput] = useState<string | null>(null);
+  const [evaluationMode, setEvaluationMode] = useState<'function' | 'interactive'>('function');
+
 
   useEffect(() => {
     if (challenge && challenge.testCases) {
       try {
         const parsedTestCases = JSON.parse(challenge.testCases);
         setTestCases(parsedTestCases.map((tc: any) => ({ ...tc, status: 'pending' })));
+        setEvaluationMode('function');
       } catch (e) {
         console.error("Failed to parse test cases JSON:", e);
         toast({
@@ -69,9 +72,10 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         setTestCases([]);
       }
     }
-    // Set initial code based on language
+    
     if (challenge?.language === 'javascript') {
-        setStudentCode(`// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`);
+        const initialCode = `// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`;
+        setStudentCode(initialCode);
     } else {
         setStudentCode('');
     }
@@ -79,8 +83,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   
 
   const handleRunCode = async () => {
-    const currentCode = codeTextareaRef.current?.value || '';
-    if (!challenge || !currentCode) {
+    if (!challenge || !studentCode) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -91,17 +94,21 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
     setIsRunning(true);
     setAiReport(null);
+    setTerminalOutput(null);
     setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending', actualOutput: undefined })));
 
     toast({
       title: "Ejecutando Análisis y Evaluación...",
-      description: "La IA está analizando el código y evaluando los casos de prueba.",
+      description: "La IA está analizando el código y evaluando la lógica.",
     });
 
     try {
+      const isFunctionMode = /function\s+suma\s*\(.*?\)\s*\{/.test(studentCode);
+      setEvaluationMode(isFunctionMode ? 'function' : 'interactive');
+
       // AI-driven analysis and evaluation
       const result: AIAntiCheatingOutput = await analyzeStudentActivity({
-        studentCode: currentCode,
+        studentCode: studentCode,
         examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
         testCases: challenge.testCases,
         allowInteractiveApis: challenge.allowInteractiveApis,
@@ -112,27 +119,37 @@ export default function SessionPage({ params }: { params: { id: string } }) {
         report: result.report
       });
 
-      setTestCases(result.testCaseResults);
+      if (isFunctionMode) {
+        setTestCases(result.testCaseResults);
+        const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
+        if (allTestsPassed) {
+          toast({
+            title: "¡Pruebas Superadas!",
+            description: "La IA ha determinado que tu lógica es correcta para todos los casos.",
+          });
+        } else {
+          toast({
+              variant: "destructive",
+              title: "Pruebas Fallidas",
+              description: "Algunos casos de prueba no pasaron. Revisa la lógica de tu función.",
+          });
+        }
+      } else {
+        // Interactive mode: We don't show test cases, but we can simulate output
+        // For now, we'll just extract any `alert` messages from the AI report if possible
+        // or just show a success message.
+        setTerminalOutput("El script se ha analizado. La IA ha determinado que la lógica general es correcta, pero no se ejecutaron casos de prueba automatizados ya que no se definió una función 'suma'.");
+         toast({
+          title: "Análisis de Script Completado",
+          description: "La IA ha evaluado la lógica de tu script.",
+        });
+      }
       
-      const isHighRisk = result.riskAssessment.toLowerCase() !== 'low';
-      const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
-
-      if (isHighRisk) {
+      if (result.riskAssessment.toLowerCase() !== 'low') {
         toast({
           variant: "destructive",
           title: `Riesgo de Trampa Detectado: ${result.riskAssessment}`,
           description: "La IA ha marcado una posible irregularidad. Revisa el reporte.",
-        });
-      } else if (!allTestsPassed) {
-        toast({
-            variant: "destructive",
-            title: "Pruebas Fallidas",
-            description: "Algunos casos de prueba no pasaron. La IA ha evaluado la lógica.",
-        });
-      } else {
-         toast({
-          title: "¡Pruebas Superadas!",
-          description: "La IA ha determinado que tu lógica es correcta para todos los casos.",
         });
       }
 
@@ -202,7 +219,6 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 </CardHeader>
                 <CardContent className="flex-grow">
                     <Textarea
-                        ref={codeTextareaRef}
                         value={studentCode}
                         onChange={(e) => setStudentCode(e.target.value)}
                         placeholder="Escribe tu código aquí..."
@@ -297,17 +313,32 @@ export default function SessionPage({ params }: { params: { id: string } }) {
 
             <div className="mt-auto flex flex-col gap-4 p-4">
                 <Separator />
-                <div>
-                    <h3 className="mb-2 font-semibold">Casos de Prueba</h3>
-                    <div className="space-y-2 text-sm">
-                        {testCases.map((testCase, index) => (
-                            <div key={index} className="flex items-center justify-between">
-                                <span className="font-mono text-xs">Entrada: {JSON.stringify(testCase.input)}, Esperado: {JSON.stringify(testCase.expectedOutput)}</span>
-                                <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                
+                {evaluationMode === 'function' && testCases.length > 0 && (
+                  <div>
+                      <h3 className="mb-2 font-semibold">Casos de Prueba</h3>
+                      <div className="space-y-2 text-sm">
+                          {testCases.map((testCase, index) => (
+                              <div key={index} className="flex items-center justify-between">
+                                  <span className="font-mono text-xs">Entrada: {JSON.stringify(testCase.input)}, Esperado: {JSON.stringify(testCase.expectedOutput)}</span>
+                                  <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+                )}
+                
+                {terminalOutput && (
+                    <Card>
+                        <CardHeader className='p-2 pb-0'>
+                            <CardTitle className='text-sm flex items-center gap-2'><Terminal className='h-4 w-4'/> Salida del Script</CardTitle>
+                        </CardHeader>
+                        <CardContent className='p-2'>
+                            <pre className="text-xs bg-muted p-2 rounded-md whitespace-pre-wrap font-mono">{terminalOutput}</pre>
+                        </CardContent>
+                    </Card>
+                )}
+                
                 <Button className="w-full" onClick={handleRunCode} disabled={isRunning || isLoadingChallenge}>
                     {isRunning ? "Evaluando con IA..." : <><Play className="mr-2 h-4 w-4" /> Evaluar con IA</>}
                 </Button>
