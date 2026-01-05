@@ -1,5 +1,7 @@
+
 import { redirect } from 'next/navigation';
 
 export default function RootPage() {
-  redirect('/dashboard');
+  // Redirect to login instead of dashboard
+  redirect('/login');
 }

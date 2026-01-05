@@ -104,7 +104,7 @@
     }
   },
   "auth": {
-    "providers": ["anonymous"]
+    "providers": ["anonymous", "password"]
   },
   "firestore": {
     "/users/{userId}": {
