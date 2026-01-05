@@ -26,7 +26,14 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !firestore) return;
+    if (!auth || !firestore) {
+        toast({
+            variant: "destructive",
+            title: "Error de configuración",
+            description: "Los servicios de Firebase no están disponibles. Contacta al administrador.",
+        });
+        return;
+    }
     setLoading(true);
 
     try {
@@ -43,8 +50,8 @@ export default function RegisterPage() {
       await setDoc(doc(firestore, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
-        displayName: displayName || user.email?.split('@')[0],
-        photoURL: user.photoURL,
+        displayName: displayName || user.email?.split('@')[0] || '',
+        photoURL: user.photoURL || '',
         role: role
       });
 
@@ -55,7 +62,7 @@ export default function RegisterPage() {
       router.push('/dashboard');
 
     } catch (error: any) {
-      console.error('Error creating account:', error);
+      console.error('Error creando cuenta:', error);
       toast({
         variant: 'destructive',
         title: 'Error al registrarse',

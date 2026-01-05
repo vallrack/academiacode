@@ -9,4 +9,5 @@ export const firebaseConfig = {
   storageBucket: "academiacode-2dcfd.appspot.com",
   messagingSenderId: "176072789290",
   appId: "1:176072789290:web:b23490562df1b124bba253",
+  measurementId: "G-Q0P44P5Y7Y"
 };
