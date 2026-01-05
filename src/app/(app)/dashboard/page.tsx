@@ -11,7 +11,8 @@ export default function DashboardPage({ userProfile, loadingProfile }: { userPro
   if (loadingProfile || !userProfile) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+            <Skeleton className="h-28 w-full" />
             <Skeleton className="h-28 w-full" />
             <Skeleton className="h-28 w-full" />
             <Skeleton className="h-28 w-full" />
@@ -23,5 +24,5 @@ export default function DashboardPage({ userProfile, loadingProfile }: { userPro
 
   const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
-  return isTeacherOrAdmin ? <TeacherDashboard /> : <StudentDashboard userProfile={userProfile} />;
+  return isTeacherOrAdmin ? <TeacherDashboard userProfile={userProfile} /> : <StudentDashboard userProfile={userProfile} />;
 }

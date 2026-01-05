@@ -2,17 +2,17 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, BookCopy, Users, Video } from 'lucide-react';
+import { ArrowUpRight, BookCopy, Users, Video, Layers, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, or } from 'firebase/firestore';
 import type { DocumentData, Query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function TeacherDashboard() {
+export function TeacherDashboard({ userProfile }: { userProfile: DocumentData }) {
   const firestore = useFirestore();
 
   const challengesQuery = useMemoFirebase(() => {
@@ -27,6 +27,24 @@ export function TeacherDashboard() {
   }, [firestore]);
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
   
+  const groupsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'groups');
+  }, [firestore]);
+  const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
+  
+  const staffQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+        collection(firestore, 'users'), 
+        or(
+            where('role', '==', 'TEACHER'),
+            where('role', '==', 'SUPER_ADMIN')
+        )
+    );
+  }, [firestore]);
+  const { data: staff, loading: loadingStaff } = useCollection(staffQuery);
+
   // For now, we will query all attempts and filter for "in-progress" on the client
   // This can be optimized later if needed
   const attemptsQuery = useMemoFirebase(() => {
@@ -46,11 +64,12 @@ export function TeacherDashboard() {
   const recentGrades = []; // Hardcoded empty for now.
 
 
-  const loading = loadingChallenges || loadingStudents || loadingSessions;
+  const loading = loadingChallenges || loadingStudents || loadingSessions || loadingGroups || loadingStaff;
+  const isSuperAdmin = userProfile.role === 'SUPER_ADMIN';
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sesiones Activas</CardTitle>
@@ -81,6 +100,30 @@ export function TeacherDashboard() {
             <p className="text-xs text-muted-foreground">Total de estudiantes en la plataforma</p>
           </CardContent>
         </Card>
+         {isSuperAdmin && (
+            <>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Grupos Creados</CardTitle>
+                    <Layers className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{groups?.length ?? 0}</div>}
+                    <p className="text-xs text-muted-foreground">Total de grupos en la plataforma</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Profesores y Admins</CardTitle>
+                    <UserCog className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{staff?.length ?? 0}</div>}
+                    <p className="text-xs text-muted-foreground">Total de personal administrativo</p>
+                  </CardContent>
+                </Card>
+            </>
+        )}
       </div>
       <div className="flex flex-col gap-6">
         <Card>
