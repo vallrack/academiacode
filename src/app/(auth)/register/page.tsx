@@ -33,6 +33,7 @@ export default function RegisterPage() {
   const [adminKey, setAdminKey] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
   const auth = useAuth();
   const firestore = useFirestore();
@@ -42,11 +43,17 @@ export default function RegisterPage() {
   const isStudentRegistration = !adminKey;
 
   const groupsQuery = useMemoFirebase(() => {
+    // We modify this to be readable by anyone for the registration form
     if (!firestore) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
   }, [firestore]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
+  
+  useEffect(() => {
+    // This ensures the Select component only renders on the client
+    setIsClient(true);
+  }, []);
 
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -62,6 +69,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // These keys should ideally be environment variables, but for this context, they are hardcoded.
       const SUPER_ADMIN_KEY = 'academia2025';
       const TEACHER_KEY = 'teacher2025';
       
@@ -99,9 +107,8 @@ export default function RegisterPage() {
       }
 
       const userDocRef = doc(firestore, 'users', user.uid);
-
-      // Note: The 'create' rule for /users/{userId} needs to allow this.
-      // We'll assume the rules allow a user to create their own document.
+      
+      // We will allow user creation without authentication in the rules for this to work
       await setDoc(userDocRef, userProfileData);
 
       toast({
@@ -197,7 +204,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {isStudentRegistration && (
+          {isClient && isStudentRegistration && (
             <div className="grid gap-2">
                 <Label htmlFor="group">Grupo</Label>
                 {loadingGroups ? (
@@ -240,5 +247,3 @@ export default function RegisterPage() {
     </Card>
   );
 }
-
-    
