@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { analyzeStudentActivity, AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFirestore, useMemoFirebase } from '@/firebase';
