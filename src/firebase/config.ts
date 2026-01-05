@@ -1,12 +1,12 @@
 
-// The Firebase config object is provided by the server
-// and should not be modified.
-// See /src/firebase/index.ts for how it's used.
+// The Firebase config object is built from environment variables.
+// This is a secure way to manage your Firebase credentials.
+
 export const firebaseConfig = {
-  apiKey: "AIzaSyDP_3zT7c_axCoB1L_eB3B-o9v9R8yYy_A",
-  authDomain: "academiacode-2dcfd.firebaseapp.com",
-  projectId: "academiacode-2dcfd",
-  storageBucket: "academiacode-2dcfd.appspot.com",
-  messagingSenderId: "123161049246",
-  appId: "1:123161049246:web:13bda828a9b25ab1c3d0c2",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
