@@ -13,12 +13,13 @@ import { doc, type DocumentData } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Logo } from './logo';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '../ui/skeleton';
 
-const menuItems = [
-    { icon: Home, label: 'Panel', href: '/dashboard' },
-    { icon: BookOpen, label: 'Desafíos', href: '/challenges' },
-    { icon: Users, label: 'Estudiantes', href: '/students' },
-    { icon: BarChart3, label: 'Resultados', href: '/results' },
+const allMenuItems = [
+    { icon: Home, label: 'Panel', href: '/dashboard', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
+    { icon: BookOpen, label: 'Desafíos', href: '/challenges', roles: ['TEACHER', 'SUPER_ADMIN'] },
+    { icon: Users, label: 'Estudiantes', href: '/students', roles: ['TEACHER', 'SUPER_ADMIN'] },
+    { icon: BarChart3, label: 'Resultados', href: '/results', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -28,14 +29,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, loading: loadingUser } = useUser();
 
   const userProfileQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "users", user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile } = useDoc<DocumentData>(userProfileQuery);
+  const { data: userProfile, isLoading: loadingProfile } = useDoc<DocumentData>(userProfileQuery);
   
   const handleLogout = async () => {
     if (auth) {
@@ -43,6 +44,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         router.push('/login');
     }
   };
+
+  const isLoading = loadingUser || loadingProfile;
+  const userRole = userProfile?.role;
+
+  const menuItems = allMenuItems.filter(item => userRole && item.roles.includes(userRole));
 
   const displayName = userProfile?.displayName || user?.email?.split('@')[0] || 'User';
   const email = userProfile?.email || user?.email || '';
@@ -81,7 +87,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Menu Items */}
       <nav className="flex-1 p-2 space-y-1">
-        {menuItems.map((item) => {
+        {isLoading ? (
+             <div className="space-y-2 p-2">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+             </div>
+        ) : menuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -113,7 +125,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* User Profile & Logout */}
       <div className="p-2 border-t border-gray-200">
-        {(isOpen || isMobile) ? (
+        {isLoading ? (
+            <div className="flex items-center gap-3 p-2">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                {isOpen && <div className="flex-1 space-y-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-32" />
+                </div>}
+            </div>
+        ) : (isOpen || isMobile) ? (
           <div className="flex items-center gap-3 p-2">
             <Avatar className="h-10 w-10">
               {photoURL && <AvatarImage src={photoURL} alt={displayName} />}
