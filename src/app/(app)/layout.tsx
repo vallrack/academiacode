@@ -50,9 +50,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         {/* Future components like a global search can go here */}
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto p-4 lg:gap-6 lg:p-6">
+                <main className="flex-1 p-4 lg:gap-6 lg:p-6">
                     {children}
-                </div>
+                </main>
             </div>
           </AuthState>
         </SidebarInset>
