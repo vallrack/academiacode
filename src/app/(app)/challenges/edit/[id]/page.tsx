@@ -34,7 +34,17 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { es } from 'date-fns/locale';
 
-type Group = { id: string; name: string };
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
+type Group = {
+  id: string;
+  name: string;
+  schedule: GroupSchedule | string;
+};
 type Student = { id: string; displayName: string };
 
 export default function EditChallengePage() {
@@ -176,6 +186,17 @@ export default function EditChallengePage() {
     }
   }
 
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
@@ -268,7 +289,7 @@ export default function EditChallengePage() {
                             <Select value={targetGroup} onValueChange={(value) => { setTargetGroup(value); setTargetStudent(''); }}>
                                 <SelectTrigger id="target-group"><SelectValue placeholder="Selecciona un grupo" /></SelectTrigger>
                                 <SelectContent>
-                                    {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}
+                                    {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name} - {formatSchedule(group.schedule)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -324,3 +345,4 @@ export default function EditChallengePage() {
   );
 }
 
+    
