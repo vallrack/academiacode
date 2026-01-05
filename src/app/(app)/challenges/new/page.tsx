@@ -81,7 +81,7 @@ export default function NewChallengePage() {
               <Label htmlFor="test-cases">Test Cases</Label>
               <Textarea
                 id="test-cases"
-                placeholder="Enter test cases in JSON format. e.g., [{'input': [2, 7, 11, 15], 'target': 9, 'output': [0, 1]}]"
+                placeholder="Define your test cases here. You can use JSON for simple inputs/outputs, or write code snippets for more complex scenarios (e.g., functions, objects, data structures)."
                 className="min-h-32 font-mono"
               />
             </div>
