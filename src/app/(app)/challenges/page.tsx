@@ -180,46 +180,48 @@ export default function ChallengesPage() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Abrir menú</span>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                    <DropdownMenuItem onSelect={() => router.push(`/challenges/edit/${challenge.id}`)}>
-                                                        <Pencil className="mr-2 h-4 w-4" />
-                                                        Modificar
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onSelect={() => router.push(`/session/${challenge.id}`)}>
-                                                        <Play className="mr-2 h-4 w-4" />
-                                                        Comenzar Sesión
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>
-                                                            <span>Cambiar Estado</span>
-                                                        </DropdownMenuSubTrigger>
-                                                        <DropdownMenuSubContent>
-                                                             <DropdownMenuRadioGroup 
-                                                                value={challenge.status} 
-                                                                onValueChange={(status) => handleStatusChange(challenge.id, status as ChallengeStatus)}
-                                                            >
-                                                                <DropdownMenuRadioItem value="published">Publicado</DropdownMenuRadioItem>
-                                                                <DropdownMenuRadioItem value="draft">Borrador</DropdownMenuRadioItem>
-                                                                <DropdownMenuRadioItem value="archived">Archivado</DropdownMenuRadioItem>
-                                                            </DropdownMenuRadioGroup>
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuSub>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onSelect={() => confirmDelete(challenge)}>
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Eliminar
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button variant="outline" size="icon" onClick={() => router.push(`/session/${challenge.id}`)}>
+                                                    <Play className="h-4 w-4" />
+                                                    <span className="sr-only">Comenzar Sesión</span>
+                                                </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                                            <span className="sr-only">Abrir menú</span>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                        <DropdownMenuItem onSelect={() => router.push(`/challenges/edit/${challenge.id}`)}>
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Modificar
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>
+                                                                <span>Cambiar Estado</span>
+                                                            </DropdownMenuSubTrigger>
+                                                            <DropdownMenuSubContent>
+                                                                <DropdownMenuRadioGroup 
+                                                                    value={challenge.status} 
+                                                                    onValueChange={(status) => handleStatusChange(challenge.id, status as ChallengeStatus)}
+                                                                >
+                                                                    <DropdownMenuRadioItem value="published">Publicado</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="draft">Borrador</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="archived">Archivado</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuSub>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onSelect={() => confirmDelete(challenge)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Eliminar
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -247,7 +249,7 @@ export default function ChallengesPage() {
         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
                         Esta acción no se puede deshacer. Esto eliminará permanentemente el desafío
                         "{challengeToDelete?.title}" de nuestros servidores.
@@ -264,5 +266,3 @@ export default function ChallengesPage() {
     </>
   );
 }
-
-    
