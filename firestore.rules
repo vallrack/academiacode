@@ -69,6 +69,15 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
+    
+    function isTeacherOrAdmin() {
+      // Check if the user's role is SUPER_ADMIN or TEACHER.
+      // This requires a read to the user's own profile document.
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'TEACHER'
+      );
+    }
 
     /**
      * Verifies ownership for an existing document. Used for update/delete.
@@ -97,18 +106,7 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     // User Data Rules
     // --------------------------------------------------------------------------
-
-    /**
-     * @description Disallows listing the entire users collection for privacy.
-     * @path /users
-     * @allow (none) No operation is permitted.
-     * @deny (list) A user trying to fetch all user profiles.
-     * @principle Prevents data leakage and protects user privacy by disabling collection-wide scans.
-     */
-    match /users/{document=**} {
-      allow read, write: if false;
-    }
-
+    
     /**
      * @description Governs access to a user's own profile document.
      * @path /users/{userId}
@@ -118,11 +116,12 @@ service cloud.firestore {
      * @principle Enforces strict data ownership, allowing users to manage only their own profile.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Deny listing; already handled by wildcard above but explicit here.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      // Allow admins/teachers to list users, but individual users can only get their own document.
+      allow list: if isTeacherOrAdmin();
+      allow get: if isOwner(userId) || isTeacherOrAdmin();
+      allow create: if isOwner(userId); // A user can create their own profile.
+      allow update: if isOwner(userId); // A user can update their own profile.
+      allow delete: if isOwner(userId); // A user can delete their own profile.
     }
 
     /**
@@ -168,8 +167,17 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // Course & Content Rules
+    // Challenges, Course & Content Rules
     // --------------------------------------------------------------------------
+    
+    /**
+     * @description Publicly readable challenges, but only writable by admins/teachers.
+     * @path /challenges/{challengeId}
+     */
+    match /challenges/{challengeId} {
+        allow read: if isSignedIn();
+        allow write: if isTeacherOrAdmin();
+    }
 
     /**
      * @description Controls access to the top-level courses collection. Courses are public to read.
@@ -218,3 +226,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
