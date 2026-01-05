@@ -38,15 +38,15 @@ export default function NewChallengePage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please fill out all required fields.",
+        description: "Por favor, completa todos los campos obligatorios.",
       });
       return;
     }
 
     console.log({ title, language, description, testCases });
     toast({
-      title: "Challenge Saved!",
-      description: `The challenge "${title}" has been saved.`,
+      title: "¡Desafío Guardado!",
+      description: `El desafío "${title}" ha sido guardado.`,
     });
     router.push("/challenges");
   };
@@ -57,47 +57,47 @@ export default function NewChallengePage() {
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
           <Link href="/challenges">
             <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
+            <span className="sr-only">Volver</span>
           </Link>
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          New Challenge
+          Nuevo Desafío
         </h1>
         <div className="hidden items-center gap-2 md:ml-auto md:flex">
           <Button variant="outline" size="sm" asChild>
-            <Link href="/challenges">Cancel</Link>
+            <Link href="/challenges">Cancelar</Link>
           </Button>
           <Button size="sm" onClick={handleSave}>
-            Save Challenge
+            Guardar Desafío
           </Button>
         </div>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Challenge Details</CardTitle>
+          <CardTitle>Detalles del Desafío</CardTitle>
           <CardDescription>
-            Fill out the form below to create a new coding challenge.
+            Completa el formulario para crear un nuevo desafío de código.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="grid gap-3">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Título</Label>
                 <Input
                   id="title"
                   type="text"
                   className="w-full"
-                  placeholder='e.g. "Two Sum"'
+                  placeholder='ej. "Two Sum"'
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
               <div className="grid gap-3">
-                <Label htmlFor="language">Language</Label>
+                <Label htmlFor="language">Lenguaje</Label>
                 <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger id="language" aria-label="Select language">
-                    <SelectValue placeholder="Select a language" />
+                  <SelectTrigger id="language" aria-label="Selecciona un lenguaje">
+                    <SelectValue placeholder="Selecciona un lenguaje" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="javascript">JavaScript</SelectItem>
@@ -117,20 +117,20 @@ export default function NewChallengePage() {
               </div>
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Descripción</Label>
               <Textarea
                 id="description"
-                placeholder="Provide a detailed description of the challenge, including the problem statement, constraints, and examples."
+                placeholder="Proporciona una descripción detallada del desafío, incluyendo el enunciado del problema, restricciones y ejemplos."
                 className="min-h-32"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="test-cases">Test Cases</Label>
+              <Label htmlFor="test-cases">Casos de Prueba</Label>
               <Textarea
                 id="test-cases"
-                placeholder="Define your test cases here. You can use JSON for simple inputs/outputs, or write code snippets for more complex scenarios (e.g., functions, objects, data structures)."
+                placeholder="Define tus casos de prueba aquí. Puedes usar JSON para entradas/salidas simples, o escribir fragmentos de código para escenarios más complejos (ej. funciones, objetos, estructuras de datos)."
                 className="min-h-32 font-mono"
                 value={testCases}
                 onChange={(e) => setTestCases(e.target.value)}
@@ -141,10 +141,10 @@ export default function NewChallengePage() {
       </Card>
       <div className="flex items-center justify-center gap-2 md:hidden">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/challenges">Cancel</Link>
+          <Link href="/challenges">Cancelar</Link>
         </Button>
         <Button size="sm" onClick={handleSave}>
-          Save Challenge
+          Guardar Desafío
         </Button>
       </div>
     </div>

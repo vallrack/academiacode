@@ -6,10 +6,10 @@ import { Book, ClipboardCheck, LayoutDashboard, Users } from "lucide-react";
 import { SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/challenges", icon: Book, label: "Challenges" },
-  { href: "/students", icon: Users, label: "Students" },
-  { href: "/results", icon: ClipboardCheck, label: "Results" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Panel" },
+  { href: "/challenges", icon: Book, label: "Desafíos" },
+  { href: "/students", icon: Users, label: "Estudiantes" },
+  { href: "/results", icon: ClipboardCheck, label: "Resultados" },
 ];
 
 export function NavItems() {

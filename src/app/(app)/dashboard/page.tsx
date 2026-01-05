@@ -24,49 +24,49 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">Sesiones Activas</CardTitle>
             <Video className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">4</div>
-            <p className="text-xs text-muted-foreground">+2 since last hour</p>
+            <p className="text-xs text-muted-foreground">+2 desde la última hora</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Challenges</CardTitle>
+            <CardTitle className="text-sm font-medium">Desafíos Totales</CardTitle>
             <BookCopy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">25</div>
-            <p className="text-xs text-muted-foreground">+3 this week</p>
+            <p className="text-xs text-muted-foreground">+3 esta semana</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Enrolled Students</CardTitle>
+            <CardTitle className="text-sm font-medium">Estudiantes Inscritos</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">128</div>
-            <p className="text-xs text-muted-foreground">+10 since last semester</p>
+            <p className="text-xs text-muted-foreground">+10 desde el último semestre</p>
           </CardContent>
         </Card>
       </div>
       <div className="flex flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Live Student Sessions</CardTitle>
-            <CardDescription>Monitor students' progress in real-time.</CardDescription>
+            <CardTitle>Sesiones de Estudiantes en Vivo</CardTitle>
+            <CardDescription>Monitorea el progreso de los estudiantes en tiempo real.</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead className="hidden sm:table-cell">Challenge</TableHead>
-                  <TableHead className="hidden md:table-cell text-center">Progress</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+                  <TableHead>Estudiante</TableHead>
+                  <TableHead className="hidden sm:table-cell">Desafío</TableHead>
+                  <TableHead className="hidden md:table-cell text-center">Progreso</TableHead>
+                  <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button asChild size="sm" variant="outline">
-                          <Link href={`/session/${index + 1}`}>Join Session</Link>
+                          <Link href={`/session/${index + 1}`}>Unirse a la Sesión</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -102,12 +102,12 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center">
             <div className="grid gap-2">
-              <CardTitle>Recent Grades</CardTitle>
-              <CardDescription>Recently graded student submissions.</CardDescription>
+              <CardTitle>Calificaciones Recientes</CardTitle>
+              <CardDescription>Envíos de estudiantes calificados recientemente.</CardDescription>
             </div>
             <Button asChild size="sm" className="ml-auto gap-1">
               <Link href="/results">
-                View All
+                Ver Todo
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -116,9 +116,9 @@ export default function DashboardPage() {
              <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Challenge</TableHead>
-                        <TableHead className="text-right">Grade</TableHead>
+                        <TableHead>Estudiante</TableHead>
+                        <TableHead>Desafío</TableHead>
+                        <TableHead className="text-right">Calificación</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
