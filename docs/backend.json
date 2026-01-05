@@ -320,7 +320,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. Each document represents a user and is identified by their unique user ID.",
+          "description": "Stores user profiles. Each document is identified by a unique user ID. This collection now includes a 'groupId' field to link students to their respective group.",
           "params": [
             {
               "name": "userId",

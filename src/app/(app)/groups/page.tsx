@@ -127,7 +127,7 @@ export default function GroupsPage() {
           <CardHeader>
             <CardTitle>Gestión de Grupos</CardTitle>
             <CardDescription>
-              Administra los grupos y jornadas de los estudiantes.
+              Administra los grupos y jornadas de los estudiantes. Haz clic en un grupo para ver sus detalles y estudiantes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -149,9 +149,11 @@ export default function GroupsPage() {
                   </TableHeader>
                   <TableBody>
                     {groups.map((group) => (
-                      <TableRow key={group.id}>
+                      <TableRow key={group.id} className="hover:bg-muted/50">
                         <TableCell className="font-medium">
-                          {group.name}
+                          <Link href={`/groups/edit/${group.id}`} className="hover:underline">
+                            {group.name}
+                          </Link>
                         </TableCell>
                         <TableCell>{formatSchedule(group.schedule)}</TableCell>
                         <TableCell className="text-right">
@@ -165,7 +167,7 @@ export default function GroupsPage() {
                               <DropdownMenuContent align="end">
                                   <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                   <DropdownMenuItem onSelect={() => router.push(`/groups/edit/${group.id}`)}>
-                                      Modificar
+                                      Modificar y ver Estudiantes
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onSelect={() => confirmDelete(group)}>
