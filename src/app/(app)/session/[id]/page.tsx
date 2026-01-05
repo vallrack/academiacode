@@ -55,7 +55,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // This would come from the challenge data in a real app
+  // This would come from the challenge data in a real app. 
+  // We'll simulate it based on the URL for now.
   const allowInteractiveApis = resolvedParams.id === 'interactive-challenge'; 
 
   const handleRunCode = async () => {
@@ -266,3 +267,5 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    
