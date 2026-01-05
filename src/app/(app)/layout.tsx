@@ -13,7 +13,6 @@ function InnerAppLayout({ children }: { children: ReactNode }) {
   const { user, loading: loadingUser } = useUser();
   const firestore = useFirestore();
 
-  // CORRECTO: Usar useDoc para obtener un único documento (operación 'get')
   const userProfileQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "users", user.uid);
@@ -23,7 +22,6 @@ function InnerAppLayout({ children }: { children: ReactNode }) {
   
   if (error) {
     console.error("Error loading user profile:", error);
-    // Opcionalmente, renderizar un estado de error o redirigir a login
   }
 
   const isLoading = loadingUser || loadingProfile;

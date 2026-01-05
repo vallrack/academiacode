@@ -26,25 +26,29 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
 
     const assignmentsRef = collection(firestore, 'assignments');
 
-    // Para profesores y administradores, obtener todas las asignaciones
+    // Profesores y admin ven todo (sin filtros para evitar problemas de índices)
     if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
       return query(assignmentsRef);
     }
 
-    // Para estudiantes, filtrar por su ID de grupo o su UID.
-    const studentTargetId = userProfile.groupId || userProfile.uid;
-    if (studentTargetId) {
-       return query(
+    // Estudiantes: buscar por su groupId si lo tienen
+    if (userProfile.groupId) {
+      return query(
         assignmentsRef,
-        where('targetId', '==', studentTargetId)
+        where('targetId', '==', userProfile.groupId)
       );
     }
-   
-    return null; // No hacer consulta si no hay perfil o targetId
+
+    // Si no tiene grupo, buscar por uid individual
+    return query(
+      assignmentsRef,
+      where('targetId', '==', userProfile.uid)
+    );
   }, [firestore, userProfile]);
 
-  const { data: assignmentsRaw, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
+  const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
 
+  // Ordenar las asignaciones en el cliente
   const assignments = useMemo(() => {
     if (!assignmentsRaw) return [];
     
@@ -55,7 +59,10 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     });
   }, [assignmentsRaw]);
 
-  if (loadingProfile) {
+  // Combined loading state
+  const isLoading = loadingProfile || loadingAssignments;
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -69,17 +76,34 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
       </div>
     );
   }
-  
+
+  // Handle case where user profile is still not available after loading has completed
   if (!userProfile) {
-      return (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error de Perfil de Usuario</AlertTitle>
-            <AlertDescription>
-              No se pudo cargar el perfil del usuario. Por favor, recarga la página.
-            </AlertDescription>
-          </Alert>
-      )
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error de Perfil de Usuario</AlertTitle>
+        <AlertDescription>
+          No se pudo cargar el perfil del usuario. Por favor, recarga la página.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error al cargar asignaciones</AlertTitle>
+        <AlertDescription>
+          {error.message}
+          <br />
+          <span className="text-xs mt-2 block">
+            Esto puede deberse a un problema de permisos o de índices de Firestore.
+          </span>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   const formatDate = (timestamp: any) => {
@@ -105,38 +129,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     return date < new Date();
   };
   
-  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-1/3" />
-          {canCreate && <Skeleton className="h-10 w-40" />}
-        </div>
-        <div className="grid gap-4">
-          <Skeleton className="h-72 w-full" />
-          <Skeleton className="h-72 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error al cargar asignaciones</AlertTitle>
-        <AlertDescription>
-          {error.message}
-          <br />
-          <span className="text-xs mt-2 block">
-            Esto puede deberse a un problema de permisos o de índices de Firestore.
-          </span>
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  const canCreate = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
   return (
     <div className="flex flex-col gap-6">
