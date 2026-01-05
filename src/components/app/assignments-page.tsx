@@ -21,6 +21,68 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
   const [isFormOpen, setIsFormOpen] = useState(false);
   const router = useRouter();
 
+  const assignmentsQuery = useMemoFirebase(() => {
+    // No construir la query si no tenemos el perfil de usuario.
+    if (!firestore || !userProfile) return null;
+
+    const assignmentsRef = collection(firestore, 'assignments');
+
+    // Profesores y admin ven todo
+    if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
+      return query(assignmentsRef);
+    }
+
+    // Estudiantes: buscar por su groupId si lo tienen
+    if (userProfile.groupId) {
+      return query(
+        assignmentsRef,
+        where('targetId', '==', userProfile.groupId)
+      );
+    }
+
+    // Si no tiene grupo, buscar por uid individual
+    return query(
+      assignmentsRef,
+      where('targetId', '==', userProfile.uid)
+    );
+  }, [firestore, userProfile]);
+
+  const { data: assignmentsRaw, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
+
+  // Ordenar las asignaciones en el cliente
+  const assignments = useMemo(() => {
+    if (!assignmentsRaw) return [];
+    
+    return [...assignmentsRaw].sort((a, b) => {
+      const dateA = a.assignedAt?.toDate?.() || new Date(a.assignedAt || 0);
+      const dateB = b.assignedAt?.toDate?.() || new Date(b.assignedAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [assignmentsRaw]);
+
+  const formatDate = (timestamp: any) => {
+    let date: Date;
+    if (timestamp?.toDate) { date = timestamp.toDate(); }
+    else if (typeof timestamp === 'string') { date = new Date(timestamp); }
+    else { return 'Fecha no disponible'; }
+    return date.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const isOverdue = (dueDate: any) => {
+    if (!dueDate) return false;
+    let date: Date;
+    if (dueDate?.toDate) { date = dueDate.toDate(); }
+    else if (typeof dueDate === 'string') { date = new Date(dueDate); }
+    else { return false; }
+    return date < new Date();
+  };
+
   if (loadingProfile) {
     return (
       <div className="space-y-6">
@@ -47,87 +109,6 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
       </Alert>
     );
   }
-
-  console.log('🔍 User Profile:', {
-    uid: userProfile.uid,
-    role: userProfile.role,
-    groupId: userProfile.groupId,
-    email: userProfile.email
-  });
-
-  const assignmentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-
-    const assignmentsRef = collection(firestore, 'assignments');
-
-    // Profesores y admin ven todo
-    if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
-      console.log('👤 Admin/Teacher: querying all assignments');
-      return query(assignmentsRef); // ← Cambio importante: usar query()
-    }
-
-    // Estudiantes: buscar por su groupId si lo tienen
-    if (userProfile.groupId) {
-      console.log('🎓 Student: querying assignments for groupId:', userProfile.groupId);
-      return query(
-        assignmentsRef,
-        where('targetId', '==', userProfile.groupId)
-      );
-    }
-
-    // Si no tiene grupo, buscar por uid individual
-    console.log('🎓 Student: querying assignments for uid:', userProfile.uid);
-    return query(
-      assignmentsRef,
-      where('targetId', '==', userProfile.uid)
-    );
-  }, [firestore, userProfile.uid, userProfile.role, userProfile.groupId]);
-
-  const { data: assignmentsRaw, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
-
-  // Ordenar las asignaciones en el cliente
-  const assignments = useMemo(() => {
-    if (!assignmentsRaw) return [];
-    
-    console.log('📋 Raw assignments:', assignmentsRaw);
-    
-    return [...assignmentsRaw].sort((a, b) => {
-      const dateA = a.assignedAt?.toDate?.() || new Date(a.assignedAt || 0);
-      const dateB = b.assignedAt?.toDate?.() || new Date(b.assignedAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    });
-  }, [assignmentsRaw]);
-
-  console.log('✅ Final assignments:', {
-    isLoading,
-    error: error?.message,
-    rawCount: assignmentsRaw?.length,
-    sortedCount: assignments?.length,
-    assignments: assignments
-  });
-
-  const formatDate = (timestamp: any) => {
-    let date: Date;
-    if (timestamp?.toDate) { date = timestamp.toDate(); }
-    else if (typeof timestamp === 'string') { date = new Date(timestamp); }
-    else { return 'Fecha no disponible'; }
-    return date.toLocaleDateString('es-ES', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  const isOverdue = (dueDate: any) => {
-    if (!dueDate) return false;
-    let date: Date;
-    if (dueDate?.toDate) { date = dueDate.toDate(); }
-    else if (typeof dueDate === 'string') { date = new Date(dueDate); }
-    else { return false; }
-    return date < new Date();
-  };
 
   const canCreate = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
