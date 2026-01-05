@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, orderBy, or, type DocumentData, type Query } from "firebase/firestore";
-import { Calendar, BookOpen, Users, Clock, User, PlusCircle } from 'lucide-react';
+import { collection, query, where, type DocumentData } from "firebase/firestore";
+import { Calendar, BookOpen, Users, Clock, User, PlusCircle, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -25,11 +25,10 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-10 w-40" />
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-10 w-40" />
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-64 w-full" />
+        <div className="grid gap-4">
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -37,49 +36,69 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     );
   }
 
-  // Si no hay perfil de usuario (por ej. error de carga), no se puede hacer nada
   if (!userProfile) {
     return (
       <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error de Perfil de Usuario</AlertTitle>
-        <AlertDescription>No se pudo cargar el perfil del usuario. No se pueden mostrar las asignaciones.</AlertDescription>
+        <AlertDescription>
+          No se pudo cargar el perfil del usuario. Por favor, recarga la página.
+        </AlertDescription>
       </Alert>
     );
   }
-
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
 
     const assignmentsRef = collection(firestore, 'assignments');
 
+    // Profesores y admin ven todo (sin filtros para evitar problemas de índices)
     if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
-      return query(assignmentsRef, orderBy('assignedAt', 'desc'));
-    }
-    
-    // Para estudiantes, usamos una consulta OR para obtener asignaciones individuales y de grupo.
-    // Esto requerirá un índice compuesto en Firestore.
-    // Firebase proporcionará un enlace en la consola de errores del navegador para crearlo.
-    const studentClauses = [where('targetId', '==', userProfile.uid)];
-    if(userProfile.groupId) {
-        studentClauses.push(where('targetId', '==', userProfile.groupId))
+      return assignmentsRef;
     }
 
+    // Estudiantes: buscar por su groupId si lo tienen
+    if (userProfile.groupId) {
+      return query(
+        assignmentsRef,
+        where('targetId', '==', userProfile.groupId)
+      );
+    }
+
+    // Si no tiene grupo, buscar por uid individual
     return query(
-        assignmentsRef, 
-        or(...studentClauses),
+      assignmentsRef,
+      where('targetId', '==', userProfile.uid)
     );
+  }, [firestore, userProfile.uid, userProfile.role, userProfile.groupId]);
 
-  }, [firestore, userProfile]);
+  const { data: assignmentsRaw, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
 
-  const { data: assignments, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
+  // Ordenar las asignaciones en el cliente
+  const assignments = useMemo(() => {
+    if (!assignmentsRaw) return [];
+    
+    return [...assignmentsRaw].sort((a, b) => {
+      const dateA = a.assignedAt?.toDate?.() || new Date(a.assignedAt || 0);
+      const dateB = b.assignedAt?.toDate?.() || new Date(b.assignedAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [assignmentsRaw]);
+
 
   const formatDate = (timestamp: any) => {
     let date: Date;
     if (timestamp?.toDate) { date = timestamp.toDate(); }
     else if (typeof timestamp === 'string') { date = new Date(timestamp); }
     else { return 'Fecha no disponible'; }
-    return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
 
   const isOverdue = (dueDate: any) => {
@@ -94,14 +113,13 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
   const canCreate = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
   if (isLoading) {
-     return (
+    return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-            <Skeleton className="h-8 w-1/3" />
-            {canCreate && <Skeleton className="h-10 w-40" />}
+          <Skeleton className="h-8 w-1/3" />
+          {canCreate && <Skeleton className="h-10 w-40" />}
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-72 w-full" />
+        <div className="grid gap-4">
           <Skeleton className="h-72 w-full" />
           <Skeleton className="h-72 w-full" />
         </div>
@@ -111,13 +129,17 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
 
   if (error) {
     return (
-       <Alert variant="destructive">
-          <AlertTitle>Error al cargar asignaciones</AlertTitle>
-          <AlertDescription>
-            {error.message}
-            <p className="mt-2 text-xs"><b>Nota para el desarrollador:</b> Este error puede ocurrir si un índice de Firestore requerido no existe. Revisa la consola del navegador para ver un enlace para crear el índice automáticamente.</p>
-          </AlertDescription>
-        </Alert>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error al cargar asignaciones</AlertTitle>
+        <AlertDescription>
+          {error.message}
+          <br />
+          <span className="text-xs mt-2 block">
+            GroupId: {userProfile.groupId || 'No asignado'} | UID: {userProfile.uid}
+          </span>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -125,100 +147,105 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="grid gap-2">
-            <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold">
             {userProfile.role === 'STUDENT' ? 'Mis Asignaciones' : 'Gestión de Asignaciones'}
-            </h1>
-            <p className="text-muted-foreground">
+          </h1>
+          <p className="text-muted-foreground">
             {userProfile.role === 'STUDENT' 
-                ? 'Completa tus desafíos antes de la fecha límite.'
-                : 'Gestiona las asignaciones de tus estudiantes.'
+              ? `Completa tus desafíos antes de la fecha límite. ${userProfile.groupId ? `Grupo: ${userProfile.groupId.slice(-6)}` : 'Sin grupo asignado'}`
+              : 'Gestiona las asignaciones de tus estudiantes.'
             }
-            </p>
+          </p>
         </div>
         {canCreate && (
-            <Button className="w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4"/>
-                Nueva Asignación
-            </Button>
+          <Button className="w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
+            <PlusCircle className="mr-2 h-4 w-4"/>
+            Nueva Asignación
+          </Button>
         )}
       </div>
 
       {!assignments || assignments.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16 mt-4">
-            <div className="flex flex-col items-center gap-2 text-center">
-                <BookOpen className="h-12 w-12 text-muted-foreground" />
-                <h3 className="text-2xl font-bold tracking-tight">
-                    No hay asignaciones para mostrar
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    {canCreate ? 'Crea una nueva asignación para verla aquí.' : 'Cuando un profesor te asigne un desafío, aparecerá aquí.'}
-                </p>
-                {canCreate && <Button className="mt-4" onClick={() => setIsFormOpen(true)}>Nueva Asignación</Button>}
-            </div>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <BookOpen className="h-12 w-12 text-muted-foreground" />
+            <h3 className="text-2xl font-bold tracking-tight">
+              No hay asignaciones para mostrar
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {canCreate 
+                ? 'Crea una nueva asignación para verla aquí.' 
+                : userProfile.groupId 
+                  ? `Buscando asignaciones para el grupo: ${userProfile.groupId.slice(-6)}`
+                  : 'Cuando un profesor te asigne un desafío, aparecerá aquí.'
+              }
+            </p>
+            {canCreate && <Button className="mt-4" onClick={() => setIsFormOpen(true)}>Nueva Asignación</Button>}
+          </div>
         </div>
       ) : (
         <div className="grid gap-6">
-            {assignments.map((assignment) => {
+          {assignments.map((assignment) => {
             const overdue = assignment.dueDate && isOverdue(assignment.dueDate);
             
             return (
-                <div
+              <div
                 key={assignment.id}
                 className={`bg-card rounded-lg border p-6 transition-shadow hover:shadow-md ${
-                    overdue ? 'border-destructive' : 'border-border'
+                  overdue ? 'border-destructive' : 'border-border'
                 }`}
-                >
+              >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div className="flex-1">
+                  <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
-                        {assignment.targetType === 'group' ? (
+                      {assignment.targetType === 'group' ? (
                         <div className="flex items-center gap-1.5 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
-                            <Users className="w-4 h-4" />
-                            <span>Asignación Grupal</span>
+                          <Users className="w-4 h-4" />
+                          <span>Asignación Grupal</span>
                         </div>
-                        ) : (
+                      ) : (
                         <div className="flex items-center gap-1.5 text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">
-                            <User className="w-4 h-4" />
-                            <span>Asignación Individual</span>
+                          <User className="w-4 h-4" />
+                          <span>Asignación Individual</span>
                         </div>
-                        )}
+                      )}
                     </div>
 
                     <h3 className="text-xl font-semibold mb-3">
-                        Desafío Asignado (ID: ...{assignment.challengeId.slice(-6)})
+                      Desafío Asignado
                     </h3>
                     
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-3">
-                        {assignment.dueDate && (
+                      {assignment.dueDate && (
                         <div className={`flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
-                            <Calendar className="w-4 h-4" />
-                            <span>
+                          <Calendar className="w-4 h-4" />
+                          <span>
                             Entrega: {formatDate(assignment.dueDate)}
                             {overdue && <span className="ml-1">(Vencida)</span>}
-                            </span>
+                          </span>
                         </div>
-                        )}
-                        
-                        {assignment.assignedAt && (
+                      )}
+                      
+                      {assignment.assignedAt && (
                         <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="w-4 h-4" />
-                            <span>Asignada: {formatDate(assignment.assignedAt)}</span>
+                          <Clock className="w-4 h-4" />
+                          <span>Asignada: {formatDate(assignment.assignedAt)}</span>
                         </div>
-                        )}
+                      )}
                     </div>
-                    </div>
+                  </div>
 
-                    <Button
+                  <Button
                     onClick={() => router.push(`/session/${assignment.challengeId}`)}
                     variant={overdue ? 'destructive' : 'default'}
                     className="w-full mt-4 sm:w-auto sm:mt-0"
-                    >
+                  >
                     {userProfile.role === 'STUDENT' ? 'Comenzar Desafío' : 'Ver Detalles'}
-                    </Button>
+                  </Button>
                 </div>
-                </div>
+              </div>
             );
-            })}
+          })}
         </div>
       )}
 
