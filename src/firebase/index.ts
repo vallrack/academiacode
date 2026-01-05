@@ -13,6 +13,7 @@ export { FirebaseClientProvider } from '@/firebase/client-provider';
 export { useCollection } from '@/firebase/firestore/use-collection';
 export { useDoc } from '@/firebase/firestore/use-doc';
 export { useUser } from '@/firebase/auth/use-user';
+export { errorEmitter } from '@/firebase/error-emitter';
 
 
 export type FirebaseInstances = {
