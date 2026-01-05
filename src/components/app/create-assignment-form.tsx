@@ -21,7 +21,7 @@ interface CreateAssignmentFormProps {
 
 export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssignmentFormProps) {
   const firestore = useFirestore();
-  const auth = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetType, setTargetType] = useState<'group' | 'student'>('group');
@@ -57,7 +57,7 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
   const handleSubmit = async () => {
-    if (!firestore || !auth.currentUser) return;
+    if (!firestore || !user) return;
 
     if (!formData.challengeId || !formData.targetId) {
       toast({
@@ -75,7 +75,7 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
         challengeId: formData.challengeId,
         targetId: formData.targetId,
         targetType: targetType,
-        assignedBy: auth.currentUser.uid,
+        assignedBy: user.uid,
         assignedAt: Timestamp.now(),
         dueDate: formData.dueDate ? Timestamp.fromDate(new Date(formData.dueDate)) : null,
       };
@@ -93,7 +93,7 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
       toast({
           variant: "destructive",
           title: 'Error al Crear',
-          description: `No se pudo crear la asignación. ${ (error as Error).message }`
+          description: `No se pudo crear la asignación. ${(error as Error).message}`
       });
     } finally {
       setIsSubmitting(false);
@@ -137,11 +137,11 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
              <RadioGroup defaultValue="group" value={targetType} onValueChange={(value) => { setTargetType(value as 'group' | 'student'); setFormData({...formData, targetId: ''}); }}>
                 <div className="flex items-center space-x-2">
                     <RadioGroupItem value="group" id="r-group" />
-                    <Label htmlFor="r-group">Un grupo completo</Label>
+                    <Label htmlFor="r-group" className="font-normal">Un grupo completo</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                     <RadioGroupItem value="student" id="r-student" />
-                    <Label htmlFor="r-student">Un estudiante específico</Label>
+                    <Label htmlFor="r-student" className="font-normal">Un estudiante específico</Label>
                 </div>
             </RadioGroup>
           </div>
@@ -207,4 +207,3 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     </div>
   );
 }
-

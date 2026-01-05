@@ -4,149 +4,108 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --------------------------------------------------------------------------
-    // Funciones Auxiliares
+    // Funciones Auxiliares (Refactorizadas sin let/if)
     // --------------------------------------------------------------------------
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Verifica si el usuario es dueño del documento por UID
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Obtiene el rol del usuario de forma segura
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
     }
 
     function isTeacherOrAdmin() {
-      return isSignedIn() && (getUserData().role == 'SUPER_ADMIN' || getUserData().role == 'TEACHER');
+      let role = getUserData(request.auth.uid).role;
+      return isSignedIn() && (role == 'SUPER_ADMIN' || role == 'TEACHER');
     }
     
     function isAdmin() {
-      return isSignedIn() && getUserData().role == 'SUPER_ADMIN';
+      return isSignedIn() && getUserData(request.auth.uid).role == 'SUPER_ADMIN';
     }
 
-    // Verifica si dos usuarios están en el mismo grupo
     function isSameGroup(targetUserId) {
-      let currentUserData = getUserData();
-      let targetUserData = get(/databases/$(database)/documents/users/$(targetUserId)).data;
-      
-      // Si el usuario actual es profesor/admin, puede ver a todos
-      if (currentUserData.role == 'SUPER_ADMIN' || currentUserData.role == 'TEACHER') {
-        return true;
-      }
-      
-      // Si ambos son estudiantes, verificar que tengan el mismo groupId
-      return currentUserData.groupId == targetUserData.groupId && currentUserData.groupId != null;
+      let currentUser = getUserData(request.auth.uid);
+      let targetUser = getUserData(targetUserId);
+      return isSignedIn() && (
+        currentUser.role == 'SUPER_ADMIN' || 
+        currentUser.role == 'TEACHER' || 
+        (currentUser.groupId == targetUser.groupId && currentUser.groupId != null)
+      );
+    }
+
+    function canViewAssignment(assignmentData) {
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && (
+        userData.role == 'SUPER_ADMIN' || 
+        userData.role == 'TEACHER' || 
+        (assignmentData.targetType == 'group' && userData.groupId == assignmentData.targetId) ||
+        (assignmentData.targetType == 'student' && request.auth.uid == assignmentData.targetId)
+      );
     }
 
     // --------------------------------------------------------------------------
-    // Reglas de Usuario (Perfiles y Datos Privados)
+    // Reglas de Usuario
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
-      // GET: 
-      // - El propio usuario puede leer su perfil
-      // - Profesores/Admin pueden leer cualquier perfil
-      // - Estudiantes pueden leer perfiles de su mismo grupo
       allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
-      
-      // LIST:
-      // - Solo profesores y admin pueden listar todos los usuarios
-      // - Los estudiantes NO pueden hacer queries generales de usuarios
-      // NOTA: Los estudiantes obtendrán usuarios específicos con 'get', no con 'list'
       allow list: if isTeacherOrAdmin();
-      
-      // CREATE:
-      // - Al registrarse (sin auth)
-      // - Admin puede crear usuarios
-      // - Usuario puede crear su propio perfil
       allow create: if request.auth == null || isAdmin() || isOwner(userId);
-      
-      // UPDATE:
-      // - El propio usuario puede actualizar su perfil
-      // - Admin puede actualizar cualquier perfil
-      // Restricción adicional: Los estudiantes NO pueden cambiar su propio rol
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
         resource.data.role == request.resource.data.role
       )) || isAdmin();
-      
       allow delete: if isAdmin();
 
-      // Subcolecciones privadas
       match /submissions/{submissionId} {
         allow read, list: if isOwner(userId) || isTeacherOrAdmin();
         allow create: if isOwner(userId) && request.resource.data.studentId == userId;
         allow update, delete: if isOwner(userId) || isAdmin();
       }
-
-      match /payments/{paymentId} {
-        allow read, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isAdmin();
+      
+      match /payments/{id} { 
+          allow read, write: if isOwner(userId) || isAdmin(); 
       }
-
-      match /subscriptions/{subscriptionId} {
-        allow read, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isAdmin();
+      match /subscriptions/{id} { 
+          allow read, write: if isOwner(userId) || isAdmin(); 
       }
     }
 
     // --------------------------------------------------------------------------
-    // Grupos y Asignaciones
+    // Grupos e Assignments
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // Lectura: Usuarios autenticados pueden ver grupos (para dropdowns)
       allow read, list: if isSignedIn();
-      // Escritura: Solo profesores y admin
       allow write: if isTeacherOrAdmin();
     }
 
     match /assignments/{assignmentId} {
-      // Los estudiantes deben leer sus asignaciones
-      // Los profes deben listar para gestionar
-      allow read, list: if isSignedIn();
-      // Solo profes/admins crean asignaciones
-      allow create: if isTeacherOrAdmin() && request.resource.data.assignedBy == request.auth.uid;
+      allow get: if isSignedIn() && canViewAssignment(resource.data);
+      
+      allow list: if isSignedIn();
+      
+      allow create: if isTeacherOrAdmin() && 
+                    request.resource.data.assignedBy == request.auth.uid;
       allow update, delete: if isTeacherOrAdmin();
     }
 
-    // --------------------------------------------------------------------------
-    // Desafíos (Challenges)
-    // --------------------------------------------------------------------------
-    
     match /challenges/{challengeId} {
       allow read, list: if isSignedIn();
       allow write: if isTeacherOrAdmin();
     }
 
-    // --------------------------------------------------------------------------
-    // Cursos y Contenido Estructurado
-    // --------------------------------------------------------------------------
-    
     match /courses/{courseId} {
       allow read, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.instructorId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
 
-      match /assignments/{assignmentId} {
-        allow read, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && 
-          get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
-
-        match /testcases/{testcaseId} {
-          allow read, list: if isSignedIn();
-          allow create, update, delete: if isSignedIn() && 
-            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
-        }
-      }
+      match /assignments/{id} { allow read, write: if isSignedIn(); }
     }
   }
 }
