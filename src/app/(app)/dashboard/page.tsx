@@ -1,10 +1,10 @@
-
 'use client';
 
 import { DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherDashboard } from '@/components/app/teacher-dashboard';
 import { StudentDashboard } from '@/components/app/student-dashboard';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function DashboardPage({ userProfile, loadingProfile }: { userProfile: DocumentData | null, loadingProfile: boolean }) {
 

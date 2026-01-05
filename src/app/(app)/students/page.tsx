@@ -37,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser } from "@/firebase/auth/use-user";
 
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
@@ -46,6 +47,7 @@ type User = {
   displayName: string;
   email: string;
   role: UserRole;
+  groupId?: string;
 };
 
 const roleMap: Record<UserRole, string> = {
@@ -54,7 +56,7 @@ const roleMap: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
-export default function StudentsPage() {
+export default function StudentsPage({ userProfile }: { userProfile?: DocumentData }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -71,6 +73,20 @@ export default function StudentsPage() {
   const { data: students, loading } = useCollection(studentsQuery);
 
   const hasStudents = !loading && students && students.length > 0;
+  
+  // Client-side permission check
+  if (userProfile?.role !== 'TEACHER' && userProfile?.role !== 'SUPER_ADMIN') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-destructive">Acceso Denegado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>No tienes los permisos necesarios para ver esta página. Por favor, contacta a un administrador.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     if (!firestore) return;
@@ -164,10 +180,7 @@ export default function StudentsPage() {
                         <TableCell className="font-medium">{student.displayName}</TableCell>
                         <TableCell className="hidden sm:table-cell">{student.email}</TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {/* Aquí podrías mostrar el nombre del grupo si lo obtienes */}
-                          <Badge variant="outline">
-                            {roleMap[student.role]}
-                          </Badge>
+                           {student.groupId || 'Sin grupo'}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>

@@ -54,7 +54,7 @@ const roleMap: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
-export default function UsersPage() {
+export default function UsersPage({ userProfile }: { userProfile?: DocumentData }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -71,6 +71,19 @@ export default function UsersPage() {
   const { data: users, loading } = useCollection(usersQuery);
 
   const hasUsers = !loading && users && users.length > 0;
+  
+  if (userProfile?.role !== 'SUPER_ADMIN') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-destructive">Acceso Denegado</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>Solo los Super Administradores pueden gestionar todos los usuarios.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     if (!firestore) return;
@@ -254,3 +267,4 @@ export default function UsersPage() {
     </>
   );
 }
+
