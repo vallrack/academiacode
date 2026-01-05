@@ -10,7 +10,7 @@ import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, type DocumentData } from 'firebase/firestore';
 import { useDoc } from "@/firebase/firestore/use-doc";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+function InnerAppLayout({ children }: { children: ReactNode }) {
   const { user, loading: loadingUser } = useUser();
   const firestore = useFirestore();
 
@@ -24,16 +24,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isLoading = loadingUser || loadingProfile;
 
   return (
+    <AppShell userProfile={userProfile} isLoading={isLoading}>
+        {React.Children.map(children, child => {
+          if (React.isValidElement(child)) {
+            // @ts-expect-error - injecting props
+            return React.cloneElement(child, { userProfile, loadingProfile: isLoading });
+          }
+          return child;
+        })}
+    </AppShell>
+  );
+}
+
+export default function AppLayout({ children }: { children: ReactNode }) {
+  return (
     <FirebaseClientProvider>
-        <AppShell userProfile={userProfile} isLoading={isLoading}>
-            {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                // @ts-expect-error - injecting props
-                return React.cloneElement(child, { userProfile, loadingProfile: isLoading });
-              }
-              return child;
-            })}
-        </AppShell>
+      <InnerAppLayout>
+        {children}
+      </InnerAppLayout>
     </FirebaseClientProvider>
   );
 }
