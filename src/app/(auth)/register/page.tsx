@@ -38,7 +38,6 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   
   const auth = useAuth();
   const firestore = useFirestore();
@@ -51,10 +50,6 @@ export default function RegisterPage() {
   }, [firestore]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
-  
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const formatSchedule = (schedule: GroupSchedule | string) => {
     if (typeof schedule === 'string') {
@@ -186,33 +181,31 @@ export default function RegisterPage() {
             />
           </div>
           
-          {isClient && (
-            <div className="grid gap-2">
-                <Label htmlFor="group">Grupo</Label>
-                {loadingGroups ? (
-                    <Skeleton className="h-10 w-full" />
-                ) : (
-                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                        <SelectTrigger id="group" aria-label="Selecciona un grupo">
-                            <SelectValue placeholder="Selecciona tu grupo y jornada" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {groups && groups.length > 0 ? (
-                                groups.map(group => (
-                                    <SelectItem key={group.id} value={group.id}>
-                                        {group.name} - {formatSchedule(group.schedule)}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <SelectItem value="no-groups" disabled>
-                                    No hay grupos disponibles
-                                </SelectItem>
-                            )}
-                        </SelectContent>
-                    </Select>
-                )}
-            </div>
-          )}
+          <div className="grid gap-2">
+              <Label htmlFor="group">Grupo</Label>
+              {loadingGroups ? (
+                  <Skeleton className="h-10 w-full" />
+              ) : (
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                      <SelectTrigger id="group" aria-label="Selecciona un grupo">
+                          <SelectValue placeholder="Selecciona tu grupo y jornada" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {groups && groups.length > 0 ? (
+                              groups.map(group => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                      {group.name} - {formatSchedule(group.schedule)}
+                                  </SelectItem>
+                              ))
+                          ) : (
+                              <SelectItem value="no-groups" disabled>
+                                  No hay grupos disponibles
+                              </SelectItem>
+                          )}
+                      </SelectContent>
+                  </Select>
+              )}
+          </div>
 
 
           <Button type="submit" className="w-full" disabled={loading}>
