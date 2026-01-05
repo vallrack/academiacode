@@ -18,7 +18,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase/firestore/use-collection';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
-type Group = { id: string; name: string };
+
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
+type Group = { 
+  id: string; 
+  name: string;
+  schedule: GroupSchedule | string;
+};
+
 
 export default function NewUserPage() {
   const [displayName, setDisplayName] = useState('');
@@ -40,6 +52,17 @@ export default function NewUserPage() {
   }, [firestore]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
+
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
 
   const handleSave = async () => {
     if (!auth || !firestore) {
@@ -194,7 +217,7 @@ export default function NewUserPage() {
                             {groups && groups.length > 0 ? (
                                 groups.map(group => (
                                     <SelectItem key={group.id} value={group.id}>
-                                        {group.name}
+                                        {group.name} - {formatSchedule(group.schedule)}
                                     </SelectItem>
                                 ))
                             ) : (
