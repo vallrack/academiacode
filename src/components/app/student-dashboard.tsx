@@ -1,95 +1,74 @@
-
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, type DocumentData, type Query } from 'firebase/firestore';
+import { collection, query, where, or, type DocumentData, type Query } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
-import { Dices } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
+import { AssignmentCard } from './assignment-card'; // We will create this component
 
+type Assignment = {
+    id: string;
+    challengeId: string;
+    targetId: string;
+    targetType: 'student' | 'group';
+    dueDate: any;
+};
 
 export function StudentDashboard({ userProfile }: { userProfile: DocumentData }) {
-    const router = useRouter();
     const firestore = useFirestore();
-    const { toast } = useToast();
-    const [isAssigning, setIsAssigning] = useState(false);
 
-    const challengesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        // Query for challenges that are published
-        return query(collection(firestore, "challenges"), where("status", "==", "published"));
-    }, [firestore]);
-
-    const { data: publishedChallenges, loading } = useCollection(challengesQuery);
-
-    const handleStartRandomChallenge = () => {
-        if (!publishedChallenges || publishedChallenges.length === 0) {
-            toast({
-                variant: "destructive",
-                title: "No hay desafíos disponibles",
-                description: "No hay desafíos publicados en este momento. Vuelve a intentarlo más tarde.",
-            });
-            return;
-        }
-
-        setIsAssigning(true);
-        // Select a random challenge
-        const randomIndex = Math.floor(Math.random() * publishedChallenges.length);
-        const randomChallenge = publishedChallenges[randomIndex];
+    const assignmentsQuery = useMemoFirebase(() => {
+        if (!firestore || !userProfile?.uid || !userProfile?.groupId) return null;
         
-        toast({
-            title: "¡Desafío Asignado!",
-            description: `¡Mucha suerte con "${randomChallenge.title}"!`,
-        });
+        // Find assignments where the target is either the student's ID or their group's ID
+        return query(
+            collection(firestore, "assignments"),
+            or(
+                where("targetId", "==", userProfile.uid),
+                where("targetId", "==", userProfile.groupId)
+            )
+        ) as Query<Assignment & DocumentData>;
+    }, [firestore, userProfile]);
 
-        // Redirect to the session page for that challenge
-        router.push(`/session/${randomChallenge.id}`);
-    };
+    const { data: assignments, loading } = useCollection(assignmentsQuery);
+
+    const hasAssignments = !loading && assignments && assignments.length > 0;
 
     return (
         <div className="flex flex-col gap-6">
             <Card>
                 <CardHeader>
                     <CardTitle>¡Bienvenido de nuevo, {userProfile.displayName}!</CardTitle>
-                    <CardDescription>¿Listo para un nuevo desafío? Presiona el botón para comenzar.</CardDescription>
+                    <CardDescription>Aquí están los desafíos que tienes pendientes. ¡Mucha suerte!</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16">
-                        <div className="flex flex-col items-center gap-4 text-center">
-                            {loading ? (
-                                <>
-                                    <Skeleton className="h-10 w-64" />
-                                    <Skeleton className="h-6 w-48" />
-                                </>
-                            ) : (
-                                <>
-                                    <h3 className="text-2xl font-bold tracking-tight">
-                                      ¿Listo para poner a prueba tus habilidades?
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      Se te asignará un desafío al azar de nuestra biblioteca.
-                                    </p>
-                                    <Button 
-                                        className="mt-4" 
-                                        size="lg" 
-                                        onClick={handleStartRandomChallenge} 
-                                        disabled={isAssigning || loading || !publishedChallenges || publishedChallenges.length === 0}
-                                    >
-                                        <Dices className="mr-2 h-5 w-5" />
-                                        {isAssigning ? "Asignando..." : "Comenzar Desafío Aleatorio"}
-                                    </Button>
-                                </>
-                            )}
+                    {loading ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <Skeleton className="h-48 w-full" />
+                            <Skeleton className="h-48 w-full" />
                         </div>
-                    </div>
+                    ) : hasAssignments ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {assignments.map((assignment) => (
+                                <AssignmentCard key={assignment.id} assignment={assignment} />
+                            ))}
+                        </div>
+                    ) : (
+                         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16">
+                            <div className="flex flex-col items-center gap-1 text-center">
+                                <h3 className="text-2xl font-bold tracking-tight">
+                                No tienes desafíos asignados
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                Cuando un profesor te asigne un desafío, aparecerá aquí.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
     );
 }
-
