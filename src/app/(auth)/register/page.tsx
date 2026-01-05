@@ -30,7 +30,6 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [adminKey, setAdminKey] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -40,10 +39,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const isStudentRegistration = !adminKey;
-
   const groupsQuery = useMemoFirebase(() => {
-    // We modify this to be readable by anyone for the registration form
     if (!firestore) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
   }, [firestore]);
@@ -51,7 +47,6 @@ export default function RegisterPage() {
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
   
   useEffect(() => {
-    // This ensures the Select component only renders on the client
     setIsClient(true);
   }, []);
 
@@ -69,19 +64,9 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // These keys should ideally be environment variables, but for this context, they are hardcoded.
-      const SUPER_ADMIN_KEY = 'academia2025';
-      const TEACHER_KEY = 'teacher2025';
+      const role = 'STUDENT'; 
       
-      let role = 'STUDENT'; 
-      
-      if (adminKey === SUPER_ADMIN_KEY) {
-        role = 'SUPER_ADMIN';
-      } else if (adminKey === TEACHER_KEY) {
-        role = 'TEACHER';
-      }
-      
-      if (role === 'STUDENT' && !selectedGroup) {
+      if (!selectedGroup) {
         toast({
             variant: 'destructive',
             title: 'Campo Requerido',
@@ -99,21 +84,17 @@ export default function RegisterPage() {
         email: user.email,
         displayName: displayName || user.email?.split('@')[0] || '',
         photoURL: user.photoURL || '',
-        role: role
+        role: role,
+        groupId: selectedGroup,
       };
-
-      if (role === 'STUDENT') {
-        userProfileData.groupId = selectedGroup;
-      }
 
       const userDocRef = doc(firestore, 'users', user.uid);
       
-      // We will allow user creation without authentication in the rules for this to work
       await setDoc(userDocRef, userProfileData);
 
       toast({
         title: '¡Cuenta Creada!',
-        description: `Te has registrado correctamente como ${role}.`,
+        description: `Te has registrado correctamente como Estudiante.`,
       });
       router.push('/dashboard');
 
@@ -126,11 +107,10 @@ export default function RegisterPage() {
           description: "La contraseña debe tener al menos 6 caracteres o el correo ya está en uso.",
         });
       } else {
-        // This is likely a Firestore security rule error now.
         const permissionError = new FirestorePermissionError({
             path: `users/${auth.currentUser?.uid || 'new-user'}`,
             operation: 'create',
-            requestResourceData: { email, displayName, role: 'STUDENT' }, // Example data
+            requestResourceData: { email, displayName, role: 'STUDENT' },
         });
         errorEmitter.emit('permission-error', permissionError);
         toast({
@@ -150,7 +130,7 @@ export default function RegisterPage() {
         <Logo className="mb-2" />
         <CardTitle className="text-2xl">Crear una Cuenta</CardTitle>
         <CardDescription>
-          Ingresa tus datos para registrarte.
+          Ingresa tus datos para registrarte como estudiante.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -188,23 +168,8 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="adminKey">
-              Clave Especial (Opcional)
-              <span className="text-xs text-gray-500 ml-2">
-                Para Admin o Profesor
-              </span>
-            </Label>
-            <Input 
-              id="adminKey" 
-              type="password" 
-              placeholder="Déjalo vacío si eres estudiante"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-            />
-          </div>
-
-          {isClient && isStudentRegistration && (
+          
+          {isClient && (
             <div className="grid gap-2">
                 <Label htmlFor="group">Grupo</Label>
                 {loadingGroups ? (
