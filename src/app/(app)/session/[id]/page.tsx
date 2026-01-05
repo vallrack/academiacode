@@ -12,9 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-const studentCode = `function twoSum(nums, target) {
+const studentCodeExample = `function twoSum(nums, target) {
   const map = new Map();
   for (let i = 0; i < nums.length; i++) {
     const complement = target - nums[i];
@@ -49,22 +51,65 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     { input: "[3,3], 6", status: "pending" },
   ]);
   const [isRunning, setIsRunning] = useState(false);
+  const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
+  const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleRunCode = () => {
+  const handleRunCode = async () => {
     setIsRunning(true);
+    setAiReport(null);
     toast({
-      title: "Ejecutando Pruebas",
-      description: "El código del estudiante se está ejecutando contra los casos de prueba.",
+      title: "Ejecutando Análisis...",
+      description: "El código y la actividad del estudiante están siendo analizados por la IA.",
     });
 
-    setTimeout(() => {
-        setTestCases([
-            { input: "[2,7,11,15], 9", status: "passed" },
-            { input: "[3,2,4], 6", status: "passed" },
-            { input: "[3,3], 6", status: "failed" },
-        ]);
-        setIsRunning(false);
-    }, 2000);
+    try {
+      const studentCode = codeTextareaRef.current?.value || '';
+      
+      // AI analysis
+      const analysisResult = await analyzeStudentActivity({
+        studentCode,
+        examDetails: "Challenge: Two Sum. Allowed language: JavaScript. No external libraries allowed.",
+        // videoDataUri and screenDataUri can be added here in a real implementation
+      });
+
+      setAiReport({
+        risk: analysisResult.riskAssessment,
+        report: analysisResult.report
+      });
+
+      if (analysisResult.riskAssessment.toLowerCase() !== 'low') {
+        toast({
+          variant: "destructive",
+          title: `Riesgo de Trampa Detectado: ${analysisResult.riskAssessment}`,
+          description: "La IA ha marcado una posible irregularidad. Revisa el reporte.",
+        });
+      } else {
+         toast({
+          title: "Análisis de IA Completo",
+          description: "No se detectaron riesgos significativos.",
+        });
+      }
+
+
+      // Simulate test cases execution
+      setTimeout(() => {
+          setTestCases([
+              { input: "[2,7,11,15], 9", status: "passed" },
+              { input: "[3,2,4], 6", status: "passed" },
+              { input: "[3,3], 6", status: "failed" },
+          ]);
+          setIsRunning(false);
+      }, 1000);
+
+    } catch (error) {
+      console.error("AI analysis failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Error en el Análisis de IA",
+        description: "No se pudo completar el análisis de la IA.",
+      });
+      setIsRunning(false);
+    }
   };
 
   const getBadgeVariant = (status: TestCaseStatus) => {
@@ -89,6 +134,17 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const getRiskVariant = (risk: string) => {
+    switch (risk.toLowerCase()) {
+      case 'high':
+        return 'destructive';
+      case 'medium':
+        return 'default'; // yellow-ish
+      default:
+        return 'secondary';
+    }
+  };
+
 
   return (
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
@@ -111,7 +167,8 @@ export default function SessionPage({ params }: { params: { id: string } }) {
                 </CardHeader>
                 <CardContent className="flex-grow">
                     <Textarea
-                        defaultValue={studentCode}
+                        ref={codeTextareaRef}
+                        defaultValue={studentCodeExample}
                         className="h-full resize-none border-0 bg-muted/50 font-mono text-sm focus-visible:ring-0"
                         aria-label="Editor de Código"
                     />
@@ -167,9 +224,20 @@ export default function SessionPage({ params }: { params: { id: string } }) {
             <CardTitle className="flex items-center gap-2"><FileText /> Desafío: Two Sum</CardTitle>
             <CardDescription>Encuentra dos números que sumen el objetivo.</CardDescription>
           </CardHeader>
-          <CardContent className="text-sm">
-            <p className="mb-4">Dado un array de enteros `nums` y un entero `target`, devuelve los índices de los dos números que suman `target`.</p>
-            <p>Puedes asumir que cada entrada tendría exactamente una solución, y no puedes usar el mismo elemento dos veces.</p>
+          <CardContent className="flex-grow space-y-4 text-sm">
+            <div>
+              <p className="mb-4">Dado un array de enteros `nums` y un entero `target`, devuelve los índices de los dos números que suman `target`.</p>
+              <p>Puedes asumir que cada entrada tendría exactamente una solución, y no puedes usar el mismo elemento dos veces.</p>
+            </div>
+             {aiReport && (
+                <Alert variant={getRiskVariant(aiReport.risk)}>
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Reporte de la IA (Riesgo: {aiReport.risk})</AlertTitle>
+                  <AlertDescription>
+                    {aiReport.report}
+                  </AlertDescription>
+                </Alert>
+              )}
           </CardContent>
           <div className="mt-auto flex flex-col gap-4 p-4">
              <Separator />
