@@ -13,6 +13,8 @@ import {
   serverTimestamp,
   type DocumentData,
   type Query,
+  query,
+  where,
 } from 'firebase/firestore';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -45,7 +47,7 @@ type Group = {
   name: string;
   schedule: GroupSchedule | string;
 };
-type Student = { id: string; displayName: string };
+type Student = { id: string; displayName: string, role: string, email: string };
 
 export default function EditChallengePage() {
   const [title, setTitle] = useState('');
@@ -77,10 +79,9 @@ export default function EditChallengePage() {
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    // Wait for firestore and user to be available
     if (!firestore || !user) return null;
-    return collection(firestore, 'users') as Query<Student & DocumentData>;
-  }, [firestore, user]); // Add user dependency
+    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
+  }, [firestore, user]);
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   useEffect(() => {
