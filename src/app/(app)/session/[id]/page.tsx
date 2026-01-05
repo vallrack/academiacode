@@ -38,12 +38,12 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const instructorAvatar = PlaceHolderImages.find(p => p.id === 'user-avatar');
 
   const firestore = useFirestore();
-  const { id: challengeId } = params;
 
   const challengeRef = useMemoFirebase(() => {
+    const challengeId = params.id;
     if (!firestore || !challengeId) return null;
     return doc(firestore, 'challenges', challengeId);
-  }, [firestore, challengeId]);
+  }, [firestore, params.id]);
 
   const { data: challenge, isLoading: isLoadingChallenge } = useDoc<DocumentData>(challengeRef);
 
@@ -304,3 +304,5 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   );
 }
 
+
+    
