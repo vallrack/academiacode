@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --------------------------------------------------------------------------
-    // Funciones Auxiliares (Refactorizadas sin let/if)
+    // Funciones Auxiliares
     // --------------------------------------------------------------------------
 
     function isSignedIn() {
@@ -90,13 +90,8 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
-      allow get: if isSignedIn() && canViewAssignment(resource.data);
-      
-      allow list: if isSignedIn();
-      
-      allow create: if isTeacherOrAdmin() && 
-                    request.resource.data.assignedBy == request.auth.uid;
-      allow update, delete: if isTeacherOrAdmin();
+        allow read, list: if isSignedIn();
+        allow write: if isTeacherOrAdmin();
     }
 
     match /challenges/{challengeId} {

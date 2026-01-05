@@ -26,21 +26,21 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
 
     const assignmentsRef = collection(firestore, 'assignments');
 
+    // Para profesores y administradores, obtener todas las asignaciones
     if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
       return query(assignmentsRef);
     }
 
-    if (userProfile.groupId) {
-      return query(
+    // Para estudiantes, filtrar por su ID de grupo o su UID.
+    const studentTargetId = userProfile.groupId || userProfile.uid;
+    if (studentTargetId) {
+       return query(
         assignmentsRef,
-        where('targetId', '==', userProfile.groupId)
+        where('targetId', '==', studentTargetId)
       );
     }
-
-    return query(
-      assignmentsRef,
-      where('targetId', '==', userProfile.uid)
-    );
+   
+    return null; // No hacer consulta si no hay perfil o targetId
   }, [firestore, userProfile]);
 
   const { data: assignmentsRaw, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
@@ -54,6 +54,33 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
       return dateB.getTime() - dateA.getTime();
     });
   }, [assignmentsRaw]);
+
+  if (loadingProfile) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="grid gap-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (!userProfile) {
+      return (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error de Perfil de Usuario</AlertTitle>
+            <AlertDescription>
+              No se pudo cargar el perfil del usuario. Por favor, recarga la página.
+            </AlertDescription>
+          </Alert>
+      )
+  }
 
   const formatDate = (timestamp: any) => {
     let date: Date;
@@ -77,17 +104,19 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     else { return false; }
     return date < new Date();
   };
+  
+  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
 
-  if (loadingProfile || isLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-10 w-40" />
+          {canCreate && <Skeleton className="h-10 w-40" />}
         </div>
         <div className="grid gap-4">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-72 w-full" />
+          <Skeleton className="h-72 w-full" />
         </div>
       </div>
     );
@@ -102,25 +131,23 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
           {error.message}
           <br />
           <span className="text-xs mt-2 block">
-            Intenta recargar la página. Si el problema persiste, contacta a soporte.
+            Esto puede deberse a un problema de permisos o de índices de Firestore.
           </span>
         </AlertDescription>
       </Alert>
     );
   }
-  
-  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="grid gap-2">
           <h1 className="text-2xl font-bold">
-            {userProfile?.role === 'STUDENT' ? 'Mis Asignaciones' : 'Gestión de Asignaciones'}
+            {userProfile.role === 'STUDENT' ? 'Mis Asignaciones' : 'Gestión de Asignaciones'}
           </h1>
           <p className="text-muted-foreground">
-            {userProfile?.role === 'STUDENT' 
-              ? `Completa tus desafíos antes de la fecha límite.${userProfile?.groupId ? ` Grupo: ...${userProfile.groupId.slice(-6)}` : ' Sin grupo'}`
+            {userProfile.role === 'STUDENT' 
+              ? `Completa tus desafíos antes de la fecha límite.${userProfile.groupId ? ` Grupo: ...${userProfile.groupId.slice(-6)}` : ' Sin grupo'}`
               : 'Gestiona las asignaciones de tus estudiantes.'
             }
           </p>
@@ -143,7 +170,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
             <p className="text-sm text-muted-foreground">
               {canCreate 
                 ? 'Crea una nueva asignación para verla aquí.' 
-                : userProfile?.groupId 
+                : userProfile.groupId 
                   ? `Buscando asignaciones para tu grupo`
                   : 'Cuando un profesor te asigne un desafío, aparecerá aquí.'
               }
@@ -208,7 +235,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
                     variant={overdue ? 'destructive' : 'default'}
                     className="w-full mt-4 sm:w-auto sm:mt-0"
                   >
-                    {userProfile?.role === 'STUDENT' ? 'Comenzar Desafío' : 'Ver Detalles'}
+                    {userProfile.role === 'STUDENT' ? 'Comenzar Desafío' : 'Ver Detalles'}
                   </Button>
                 </div>
               </div>
