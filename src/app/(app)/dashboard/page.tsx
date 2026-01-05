@@ -9,23 +9,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where } from 'firebase/firestore';
-import { useMemo } from 'react';
 import type { DocumentData, Query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   const firestore = useFirestore();
 
-  const challengesQuery = useMemo(() => {
+  const challengesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'challenges');
   }, [firestore]);
   const { data: challenges, loading: loadingChallenges } = useCollection(challengesQuery);
 
-  const studentsQuery = useMemo(() => {
+  const studentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
   }, [firestore]);
@@ -33,7 +32,7 @@ export default function DashboardPage() {
   
   // For now, we will query all attempts and filter for "in-progress" on the client
   // This can be optimized later if needed
-  const attemptsQuery = useMemo(() => {
+  const attemptsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     // This query is broad. In a real-world scenario with many users, 
     // you would likely use a collection group query and proper indexing.

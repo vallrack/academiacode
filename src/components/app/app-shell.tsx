@@ -6,11 +6,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useUser } from '@/firebase/auth/use-user';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { doc, type DocumentData } from 'firebase/firestore';
-import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Logo } from './logo';
 import { cn } from '@/lib/utils';
@@ -31,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  const userProfileQuery = useMemo(() => {
+  const userProfileQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "users", user.uid);
   }, [firestore, user]);

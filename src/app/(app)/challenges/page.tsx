@@ -8,9 +8,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, DocumentData, Query } from "firebase/firestore";
-import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Challenge = {
@@ -23,7 +22,7 @@ type Challenge = {
 export default function ChallengesPage() {
     const firestore = useFirestore();
     
-    const challengesQuery = useMemo(() => {
+    const challengesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return collection(firestore, "challenges") as Query<Challenge & DocumentData>;
     }, [firestore]);
