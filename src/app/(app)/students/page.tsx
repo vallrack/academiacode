@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, where } from "firebase/firestore";
+import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, where, query } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
