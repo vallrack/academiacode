@@ -103,25 +103,12 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
-    // Asignaciones - REGLAS ACTUALIZADAS PARA TU ESTRUCTURA
+    // Asignaciones - REGLAS SIMPLIFICADAS PARA DEBUGGING
     // --------------------------------------------------------------------------
     
     match /assignments/{assignmentId} {
-      // GET: Puede leer si tiene permiso según canViewAssignment
-      allow get: if isSignedIn() && canViewAssignment(resource.data);
-      
-      // LIST: Simplificado para evitar problemas con queries complejas
-      allow list: if isSignedIn() && (
-        isTeacherOrAdmin() ||
-        // Estudiantes pueden hacer queries filtrando por targetId
-        getUserData().role == 'STUDENT'
-      );
-      
-      // Solo profes/admins crean y modifican asignaciones
-      allow create: if isTeacherOrAdmin() && 
-                      request.resource.data.assignedBy == request.auth.uid &&
-                      request.resource.data.keys().hasAll(['assignedAt', 'assignedBy', 'challengeId', 'targetId', 'targetType']);
-      allow update, delete: if isTeacherOrAdmin();
+        allow read, list: if isSignedIn();
+        allow write: if isTeacherOrAdmin();
     }
 
     // --------------------------------------------------------------------------
