@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function NewChallengePage() {
   return (
@@ -35,14 +36,38 @@ export default function NewChallengePage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            <div className="grid gap-3">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                type="text"
-                className="w-full"
-                placeholder='e.g. "Two Sum"'
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid gap-3">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  type="text"
+                  className="w-full"
+                  placeholder='e.g. "Two Sum"'
+                />
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="language">Language</Label>
+                <Select>
+                    <SelectTrigger id="language" aria-label="Select language">
+                        <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="javascript">JavaScript</SelectItem>
+                        <SelectItem value="python">Python</SelectItem>
+                        <SelectItem value="java">Java</SelectItem>
+                        <SelectItem value="csharp">C#</SelectItem>
+                        <SelectItem value="cpp">C++</SelectItem>
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="go">Go</SelectItem>
+                        <SelectItem value="rust">Rust</SelectItem>
+                        <SelectItem value="swift">Swift</SelectItem>
+                        <SelectItem value="kotlin">Kotlin</SelectItem>
+                        <SelectItem value="php">PHP</SelectItem>
+                        <SelectItem value="ruby">Ruby</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid gap-3">
               <Label htmlFor="description">Description</Label>
