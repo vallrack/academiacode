@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
-import { useState, useRef } from 'react';
+import { useState, useRef, use } from 'react';
 import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -37,6 +37,7 @@ type TestCase = {
 
 
 export default function SessionPage({ params }: { params: { id: string } }) {
+  const resolvedParams = use(params);
   const { toast } = useToast();
   const student = {
     name: "Alice Johnson",
@@ -55,7 +56,7 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const codeTextareaRef = useRef<HTMLTextAreaElement>(null);
   
   // This would come from the challenge data in a real app
-  const allowInteractiveApis = params.id === 'interactive-challenge'; 
+  const allowInteractiveApis = resolvedParams.id === 'interactive-challenge'; 
 
   const handleRunCode = async () => {
     setIsRunning(true);
