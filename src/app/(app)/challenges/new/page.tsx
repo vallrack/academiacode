@@ -28,8 +28,6 @@ import { Switch } from "@/components/ui/switch";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore } from "@/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function NewChallengePage() {
   const [title, setTitle] = useState("");
@@ -47,7 +45,7 @@ export default function NewChallengePage() {
     if (!title || !description || !language) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Error de Validación",
         description: "Por favor, completa todos los campos obligatorios.",
       });
       return;
@@ -56,7 +54,7 @@ export default function NewChallengePage() {
     if (!user || !firestore) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Error de Autenticación",
         description: "Debes iniciar sesión para crear un desafío.",
       });
       return;
@@ -64,47 +62,39 @@ export default function NewChallengePage() {
 
     setIsSaving(true);
 
-    const challengesCollection = collection(firestore, 'challenges');
-    const challengeData = {
-      title,
-      description,
-      language,
-      testCases,
-      allowInteractiveApis: allowInteractive,
-      status: "draft",
-      createdBy: user.uid,
-      createdAt: serverTimestamp(),
-    };
+    try {
+      const challengesCollection = collection(firestore, 'challenges');
+      const challengeData = {
+        title,
+        description,
+        language,
+        testCases,
+        allowInteractiveApis: allowInteractive,
+        status: "draft",
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+      };
 
-    addDoc(challengesCollection, challengeData)
-      .then(() => {
-        toast({
-          title: "¡Desafío Guardado!",
-          description: `El desafío "${title}" ha sido guardado.`,
-        });
-        router.push("/challenges");
-      })
-      .catch(async (serverError) => {
-        // This is our new permission error handling
-        const permissionError = new FirestorePermissionError({
-            path: challengesCollection.path,
-            operation: 'create',
-            requestResourceData: challengeData,
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        
-        // Fallback for other errors
-        console.error("Error saving challenge: ", serverError);
-        toast({
-            variant: "destructive",
-            title: "Error al guardar",
-            description: "No se pudo guardar el desafío. Revisa la consola para más detalles.",
-        });
-      })
-      .finally(() => {
-        // Always reset saving state, regardless of success or failure
-        setIsSaving(false);
+      await addDoc(challengesCollection, challengeData);
+
+      toast({
+        title: "¡Desafío Guardado!",
+        description: `El desafío "${title}" ha sido guardado correctamente.`,
       });
+
+      router.push("/challenges");
+
+    } catch (error: any) {
+      console.error("Error saving challenge: ", error);
+      toast({
+          variant: "destructive",
+          title: "Error al Guardar en la Base de Datos",
+          description: `No se pudo guardar el desafío. Causa: ${error.message}`,
+      });
+    } finally {
+      // Este bloque se ejecutará siempre, tanto si hay éxito como si hay error.
+      setIsSaving(false);
+    }
   };
 
   return (
