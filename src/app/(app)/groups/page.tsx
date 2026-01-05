@@ -39,10 +39,16 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
 type Group = {
   id: string;
   name: string;
-  schedule: string;
+  schedule: GroupSchedule | string; // Support old and new format
 };
 
 export default function GroupsPage() {
@@ -94,6 +100,17 @@ export default function GroupsPage() {
     }
   };
 
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule; // For backward compatibility
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6">
@@ -136,7 +153,7 @@ export default function GroupsPage() {
                         <TableCell className="font-medium">
                           {group.name}
                         </TableCell>
-                        <TableCell>{group.schedule}</TableCell>
+                        <TableCell>{formatSchedule(group.schedule)}</TableCell>
                         <TableCell className="text-right">
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>

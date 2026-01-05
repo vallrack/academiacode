@@ -7,6 +7,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Card,
   CardContent,
@@ -22,21 +23,31 @@ import { useUser } from '@/firebase/auth/use-user';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
+const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
 export default function NewGroupPage() {
   const [name, setName] = useState('');
-  const [schedule, setSchedule] = useState('');
+  const [selectedDays, setSelectedDays] = useState<Record<string, boolean>>({});
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useUser();
 
+  const handleDayChange = (day: string) => {
+    setSelectedDays(prev => ({ ...prev, [day]: !prev[day] }));
+  };
+
   const handleSave = async () => {
-    if (!name || !schedule) {
+    const finalSelectedDays = Object.keys(selectedDays).filter(day => selectedDays[day]);
+
+    if (!name || finalSelectedDays.length === 0 || !startTime || !endTime) {
       toast({
         variant: 'destructive',
         title: 'Error de Validación',
-        description: 'Por favor, completa todos los campos.',
+        description: 'Por favor, completa el nombre, al menos un día y las horas de inicio/fin.',
       });
       return;
     }
@@ -54,7 +65,11 @@ export default function NewGroupPage() {
     
     const groupData = {
         name,
-        schedule,
+        schedule: {
+          days: finalSelectedDays,
+          startTime,
+          endTime,
+        },
         createdBy: user.uid,
         createdAt: serverTimestamp(),
     };
@@ -130,15 +145,41 @@ export default function NewGroupPage() {
               />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="schedule">Jornada / Horario</Label>
-              <Input
-                id="schedule"
-                type="text"
-                className="w-full"
-                placeholder='ej. "Diurna" o "8:00am - 12:00pm"'
-                value={schedule}
-                onChange={(e) => setSchedule(e.target.value)}
-              />
+              <Label>Días de la Semana</Label>
+              <div className="flex flex-wrap gap-4">
+                {daysOfWeek.map(day => (
+                  <div key={day} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`day-${day}`}
+                      checked={selectedDays[day] || false}
+                      onCheckedChange={() => handleDayChange(day)}
+                    />
+                    <Label htmlFor={`day-${day}`} className="font-normal">{day}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid gap-3">
+                  <Label htmlFor="start-time">Hora de Inicio</Label>
+                  <Input
+                    id="start-time"
+                    type="time"
+                    className="w-full"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="end-time">Hora de Fin</Label>
+                  <Input
+                    id="end-time"
+                    type="time"
+                    className="w-full"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
             </div>
           </div>
         </CardContent>

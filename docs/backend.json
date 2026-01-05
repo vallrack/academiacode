@@ -56,8 +56,28 @@
           "description": "Name of the group (e.g., 'ADS1')."
         },
         "schedule": {
-          "type": "string",
-          "description": "The schedule for the group (e.g., 'Diurna', 'Nocturna')."
+          "type": "object",
+          "description": "The structured schedule for the group.",
+          "properties": {
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Days of the week for the class."
+            },
+            "startTime": {
+              "type": "string",
+              "format": "time",
+              "description": "Start time for the class."
+            },
+            "endTime": {
+              "type": "string",
+              "format": "time",
+              "description": "End time for the class."
+            }
+          },
+          "required": ["days", "startTime", "endTime"]
         }
       },
       "required": [

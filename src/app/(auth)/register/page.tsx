@@ -19,10 +19,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
 type Group = {
   id: string;
   name: string;
-  schedule: string;
+  schedule: GroupSchedule | string;
 };
 
 
@@ -49,6 +55,17 @@ export default function RegisterPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
 
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -183,7 +200,7 @@ export default function RegisterPage() {
                             {groups && groups.length > 0 ? (
                                 groups.map(group => (
                                     <SelectItem key={group.id} value={group.id}>
-                                        {group.name} - {group.schedule}
+                                        {group.name} - {formatSchedule(group.schedule)}
                                     </SelectItem>
                                 ))
                             ) : (
