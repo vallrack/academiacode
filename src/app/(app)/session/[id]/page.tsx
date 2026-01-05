@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
+import { useState } from 'react';
 
 const studentCode = `function twoSum(nums, target) {
   const map = new Map();
@@ -25,6 +26,14 @@ const studentCode = `function twoSum(nums, target) {
   return [];
 };`;
 
+type TestCaseStatus = "pending" | "passed" | "failed";
+
+type TestCase = {
+  input: string;
+  status: TestCaseStatus;
+};
+
+
 export default function SessionPage({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const student = {
@@ -34,12 +43,52 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   const studentAvatar = PlaceHolderImages.find(p => p.id === student.avatarId);
   const instructorAvatar = PlaceHolderImages.find(p => p.id === 'user-avatar');
 
+  const [testCases, setTestCases] = useState<TestCase[]>([
+    { input: "[2,7,11,15], 9", status: "pending" },
+    { input: "[3,2,4], 6", status: "pending" },
+    { input: "[3,3], 6", status: "pending" },
+  ]);
+  const [isRunning, setIsRunning] = useState(false);
+
   const handleRunCode = () => {
+    setIsRunning(true);
     toast({
       title: "Ejecutando Pruebas",
       description: "El código del estudiante se está ejecutando contra los casos de prueba.",
     });
+
+    setTimeout(() => {
+        setTestCases([
+            { input: "[2,7,11,15], 9", status: "passed" },
+            { input: "[3,2,4], 6", status: "passed" },
+            { input: "[3,3], 6", status: "failed" },
+        ]);
+        setIsRunning(false);
+    }, 2000);
   };
+
+  const getBadgeVariant = (status: TestCaseStatus) => {
+    switch (status) {
+        case "passed":
+            return "secondary";
+        case "failed":
+            return "destructive";
+        default:
+            return "outline";
+    }
+  };
+
+  const getBadgeText = (status: TestCaseStatus) => {
+    switch (status) {
+        case "passed":
+            return "Pasó";
+        case "failed":
+            return "Falló";
+        default:
+            return "Pendiente";
+    }
+  }
+
 
   return (
     <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
@@ -127,17 +176,20 @@ export default function SessionPage({ params }: { params: { id: string } }) {
              <div>
                 <h3 className="mb-2 font-semibold">Casos de Prueba</h3>
                 <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between"><span className="font-mono">Entrada: [2,7,11,15], 9</span><Badge variant="secondary">Pasó</Badge></div>
-                    <div className="flex items-center justify-between"><span className="font-mono">Entrada: [3,2,4], 6</span><Badge variant="secondary">Pasó</Badge></div>
-                    <div className="flex items-center justify-between"><span className="font-mono">Entrada: [3,3], 6</span><Badge variant="destructive">Falló</Badge></div>
+                    {testCases.map((testCase, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                            <span className="font-mono">Entrada: {testCase.input}</span>
+                            <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
+                        </div>
+                    ))}
                 </div>
              </div>
-             <Button className="w-full" onClick={handleRunCode}><Play className="mr-2 h-4 w-4" /> Ejecutar Código y Probar</Button>
+             <Button className="w-full" onClick={handleRunCode} disabled={isRunning}>
+                {isRunning ? "Ejecutando..." : <><Play className="mr-2 h-4 w-4" /> Ejecutar Código y Probar</>}
+             </Button>
           </div>
         </Card>
       </div>
     </div>
   );
 }
-
-    
