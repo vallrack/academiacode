@@ -102,6 +102,7 @@ export default function NewChallengePage() {
         });
       })
       .finally(() => {
+        // Always reset saving state, regardless of success or failure
         setIsSaving(false);
       });
   };
