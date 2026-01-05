@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -11,27 +10,23 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Verifica si el usuario autenticado es el dueño del documento
+    // Verifica si el usuario es dueño del documento por UID
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Obtiene el rol del usuario desde su documento de perfil
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    // Obtiene el rol del usuario de forma segura
+    // Usamos esta función para centralizar la lógica de TEACHER/ADMIN
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isTeacherOrAdmin() {
-      return isSignedIn() && (getUserRole() == 'SUPER_ADMIN' || getUserRole() == 'TEACHER');
+      return isSignedIn() && (getUserData().role == 'SUPER_ADMIN' || getUserData().role == 'TEACHER');
     }
     
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'SUPER_ADMIN';
-    }
-
-    // Verifica si el usuario es el instructor de un curso específico
-    function isCourseInstructor(courseId) {
-      return isSignedIn() && get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
+      return isSignedIn() && getUserData().role == 'SUPER_ADMIN';
     }
 
     // --------------------------------------------------------------------------
@@ -39,18 +34,21 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
-      // IMPORTANTE: Permite a profesores listar estudiantes para asignaciones
-      allow list: if isTeacherOrAdmin();
+      // CLAVE PARA TU PANEL: Permitir que el usuario lea su propio perfil SIEMPRE
+      // Esto evita que la validación de rol bloquee la carga inicial del InnerAppLayout.
       allow get: if isOwner(userId) || isTeacherOrAdmin();
       
-      // Permitir creación inicial (registro) o por admin
+      // Permitir a profesores listar a los estudiantes para los selectores
+      allow list: if isTeacherOrAdmin();
+      
+      // Registro y edición
       allow create: if isOwner(userId) || request.auth == null || isAdmin(); 
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
 
-      // Subcolecciones privadas del usuario
+      // Subcolecciones privadas
       match /submissions/{submissionId} {
-        allow read, list: if isOwner(userId) || isTeacherOrAdmin(); // Profesores necesitan leer para corregir
+        allow read, list: if isOwner(userId) || isTeacherOrAdmin();
         allow create: if isOwner(userId) && request.resource.data.studentId == userId;
         allow update, delete: if isOwner(userId) || isAdmin();
       }
@@ -73,17 +71,17 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // Permitir lectura pública para que el dropdown de grupos funcione
+      // Lectura pública para que dropdowns de registro y asignación funcionen
       allow read, list: if true; 
-      allow write: if isAdmin() || isTeacherOrAdmin();
+      allow write: if isTeacherOrAdmin();
     }
 
     match /assignments/{assignmentId} {
-        // Los estudiantes deben poder leer las tareas asignadas
+        // Los estudiantes deben leer lo asignado, los profes deben listar para gestionar
         allow read, list: if isSignedIn();
-        // Solo profesores y admins pueden crear o modificar asignaciones
+        // Solo profes/admins crean asignaciones
         allow create: if isTeacherOrAdmin() && request.resource.data.assignedBy == request.auth.uid;
-        allow update, delete: if isTeacherOrAdmin() || isAdmin();
+        allow update, delete: if isTeacherOrAdmin();
     }
 
     // --------------------------------------------------------------------------
@@ -91,7 +89,7 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /challenges/{challengeId} {
-      allow read: if isSignedIn();
+      allow read, list: if isSignedIn();
       allow write: if isTeacherOrAdmin();
     }
 
@@ -102,20 +100,18 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow read, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.instructorId == request.auth.uid;
-      allow update: if isCourseInstructor(courseId) && request.resource.data.instructorId == resource.data.instructorId;
-      allow delete: if isCourseInstructor(courseId) || isAdmin();
+      allow update: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
 
       match /assignments/{assignmentId} {
         allow read, list: if isSignedIn();
-        allow create: if isCourseInstructor(courseId) && request.resource.data.courseId == courseId;
-        allow update: if isCourseInstructor(courseId) && request.resource.data.courseId == resource.data.courseId;
-        allow delete: if isCourseInstructor(courseId);
+        allow create, update, delete: if isSignedIn() && 
+          get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
 
         match /testcases/{testcaseId} {
           allow read, list: if isSignedIn();
-          allow create: if isCourseInstructor(courseId) && request.resource.data.assignmentId == assignmentId;
-          allow update: if isCourseInstructor(courseId) && request.resource.data.assignmentId == resource.data.assignmentId;
-          allow delete: if isCourseInstructor(courseId);
+          allow create, update, delete: if isSignedIn() && 
+            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
         }
       }
     }

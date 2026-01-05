@@ -19,8 +19,13 @@ function InnerAppLayout({ children }: { children: ReactNode }) {
     return doc(firestore, "users", user.uid);
   }, [firestore, user]);
 
-  const { data: userProfile, isLoading: loadingProfile } = useDoc<DocumentData>(userProfileQuery);
+  const { data: userProfile, isLoading: loadingProfile, error } = useDoc<DocumentData>(userProfileQuery);
   
+  if (error) {
+    console.error("Error loading user profile:", error);
+    // Optionally, render an error state or redirect to login
+  }
+
   const isLoading = loadingUser || loadingProfile;
 
   return (
