@@ -98,8 +98,8 @@ export default function NewChallengePage() {
 
         toast({
             variant: "destructive",
-            title: "Error al Guardar en la Base de Datos",
-            description: `No se pudo guardar el desafío. Revisa los permisos.`,
+            title: "Error al Guardar",
+            description: `No se pudo guardar el desafío. Verifica que tienes el rol correcto (Profesor o Admin).`,
         });
       })
       .finally(() => {

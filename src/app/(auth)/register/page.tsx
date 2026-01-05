@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/app/logo';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -38,38 +40,32 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Clave secreta para crear SUPER_ADMIN (cámbiala por algo más seguro)
       const SUPER_ADMIN_KEY = 'academia2025';
       const TEACHER_KEY = 'teacher2025';
       
-      // Check if any user exists to determine role
-      const usersCollection = collection(firestore, 'users');
-      const userSnapshot = await getDocs(usersCollection);
-      const isFirstUser = userSnapshot.empty;
-      
-      // Determinar el rol basado en la clave ingresada
-      let role = 'STUDENT'; // Por defecto
+      let role = 'STUDENT'; 
       
       if (adminKey === SUPER_ADMIN_KEY) {
         role = 'SUPER_ADMIN';
       } else if (adminKey === TEACHER_KEY) {
         role = 'TEACHER';
-      } else if (isFirstUser) {
-        // El primer usuario siempre es SUPER_ADMIN
-        role = 'SUPER_ADMIN';
       }
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create user profile in Firestore
-      await setDoc(doc(firestore, 'users', user.uid), {
+      const userProfileData = {
         uid: user.uid,
         email: user.email,
         displayName: displayName || user.email?.split('@')[0] || '',
         photoURL: user.photoURL || '',
         role: role
-      });
+      };
+
+      const userDocRef = doc(firestore, 'users', user.uid);
+
+      // Create user profile in Firestore
+      await setDoc(userDocRef, userProfileData);
 
       toast({
         title: '¡Cuenta Creada!',
@@ -79,11 +75,26 @@ export default function RegisterPage() {
 
     } catch (error: any) {
       console.error('Error creando cuenta:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error al registrarse',
-        description: error.message || 'No se pudo crear la cuenta.',
-      });
+       if (error.code && error.code.startsWith('auth/')) {
+         toast({
+          variant: 'destructive',
+          title: 'Error de Autenticación',
+          description: error.message,
+        });
+      } else {
+        // Assume it could be a Firestore permission error
+        const permissionError = new FirestorePermissionError({
+            path: `users/${auth.currentUser?.uid || 'new-user'}`,
+            operation: 'create',
+            requestResourceData: { email, displayName },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+            variant: "destructive",
+            title: "Error al Guardar Perfil",
+            description: "No se pudo crear el perfil de usuario. Revisa las reglas de seguridad de Firestore.",
+        });
+      }
     } finally {
       setLoading(false);
     }

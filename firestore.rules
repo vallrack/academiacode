@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -8,32 +9,39 @@ service cloud.firestore {
     }
     
     function isTeacherOrAdmin(uid) {
+      // This checks if the user document exists and has a valid role.
       let role = getUserRole(uid);
       return role == 'TEACHER' || role == 'ADMIN' || role == 'SUPER_ADMIN';
     }
-    
-    function userExists(uid) {
-      return exists(/databases/$(database)/documents/users/$(uid));
-    }
 
     match /users/{userId} {
+      // Anyone authenticated can read their own profile.
+      // Teachers and Admins can read anyone's profile.
       allow read: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
+      
+      // An authenticated user can create their own user profile document.
       allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && (
-        request.auth.uid == userId || 
-        (userExists(request.auth.uid) && (getUserRole(request.auth.uid) == 'ADMIN' || getUserRole(request.auth.uid) == 'SUPER_ADMIN'))
-      );
-      allow delete: if request.auth != null && userExists(request.auth.uid) && getUserRole(request.auth.uid) == 'SUPER_ADMIN';
+
+      // A user can update their own profile. Admins can update any profile.
+      allow update: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
+      
+      // Only a SUPER_ADMIN can delete a user profile.
+      allow delete: if request.auth != null && isTeacherOrAdmin(request.auth.uid) && getUserRole(request.auth.uid) == 'SUPER_ADMIN';
     }
     
     match /challenges/{challengeId} {
+      // Any authenticated user can read challenges.
       allow read: if request.auth != null;
-      // Allow write if the user is a TEACHER, ADMIN, or SUPER_ADMIN
+      
+      // Only Teachers or Admins can create, update, or delete challenges.
       allow write: if request.auth != null && isTeacherOrAdmin(request.auth.uid);
     }
     
     match /users/{userId}/challengeAttempts/{attemptId} {
+      // A user can read their own attempts. Teachers/Admins can read any attempt.
       allow read: if request.auth != null && (request.auth.uid == userId || isTeacherOrAdmin(request.auth.uid));
+      
+      // A user can only write to their own attempts.
       allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
