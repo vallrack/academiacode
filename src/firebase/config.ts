@@ -3,10 +3,10 @@
 // This is a secure way to manage your Firebase credentials.
 
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyB0q_5lUbaGT1aroiP9ufGczMpC3BzEo28",
+  authDomain: "academiacode-2dcfd.firebaseapp.com",
+  projectId: "academiacode-2dcfd",
+  storageBucket: "academiacode-2dcfd.appspot.com",
+  messagingSenderId: "176072789290",
+  appId: "1:176072789290:web:b23490562df1b124bba253",
 };
