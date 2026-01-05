@@ -5,11 +5,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers, UserCog } from 'lucide-react';
-import { useUser } from '@/firebase/auth/use-user';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc, type DocumentData } from 'firebase/firestore';
+import { type DocumentData } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Logo } from './logo';
 import { cn } from '@/lib/utils';
@@ -24,21 +22,20 @@ const allMenuItems = [
     { icon: BarChart3, label: 'Resultados', href: '/results', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ 
+  children,
+  userProfile,
+  isLoading
+}: { 
+  children: React.ReactNode,
+  userProfile: DocumentData | null,
+  isLoading: boolean 
+}) {
   const [isOpen, setIsOpen] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
-  const { user, loading: loadingUser } = useUser();
-
-  const userProfileQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, "users", user.uid);
-  }, [firestore, user]);
-
-  const { data: userProfile, isLoading: loadingProfile } = useDoc<DocumentData>(userProfileQuery);
   
   const handleLogout = async () => {
     if (auth) {
@@ -47,14 +44,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isLoading = loadingUser || loadingProfile;
   const userRole = userProfile?.role;
-
   const menuItems = allMenuItems.filter(item => userRole && item.roles.includes(userRole));
-
-  const displayName = userProfile?.displayName || user?.email?.split('@')[0] || 'User';
-  const email = userProfile?.email || user?.email || '';
-  const photoURL = userProfile?.photoURL || user?.photoURL || '';
+  const displayName = userProfile?.displayName || 'User';
+  const email = userProfile?.email || '';
+  const photoURL = userProfile?.photoURL || '';
   const fallback = displayName?.slice(0, 2).toUpperCase() || 'U';
 
 
@@ -106,7 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 isOpen ? "" : "justify-center",
                 isActive ? "bg-gray-100" : "hover:bg-gray-100"
               )}
-              title={!isOpen && !isMobile ? item.label : undefined}
+              title={!isOpen ? item.label : undefined}
               onClick={() => isMobile && setIsMobileMenuOpen(false)}
             >
               <item.icon className={cn(
@@ -209,5 +203,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-    

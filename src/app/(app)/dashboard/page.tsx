@@ -1,23 +1,12 @@
 
 'use client';
 
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, type DocumentData } from 'firebase/firestore';
+import { DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherDashboard } from '@/components/app/teacher-dashboard';
 import { StudentDashboard } from '@/components/app/student-dashboard';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
-  const firestore = useFirestore();
-
-  const userProfileQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-
-  const { data: userProfile, isLoading: loadingProfile } = useDoc<DocumentData>(userProfileQuery);
+export default function DashboardPage({ userProfile, loadingProfile }: { userProfile: DocumentData | null, loadingProfile: boolean }) {
 
   if (loadingProfile || !userProfile) {
     return (
