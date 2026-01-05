@@ -66,26 +66,27 @@ export default function SessionPage({ params }: { params: { id: string } }) {
   
 
   const handleRunCode = async () => {
-    if (!challenge) {
+    const currentCode = codeTextareaRef.current?.value || '';
+    if (!challenge || !currentCode) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se ha podido cargar el desafío.",
+        description: "No se ha podido cargar el desafío o el editor de código está vacío.",
       });
       return;
     }
 
     setIsRunning(true);
     setAiReport(null);
+    setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending' }))); // Reset test cases
+    
     toast({
       title: "Ejecutando Análisis...",
       description: "El código y la actividad del estudiante están siendo analizados por la IA.",
     });
 
     try {
-      const currentCode = codeTextareaRef.current?.value || '';
-      
-      // AI analysis
+      // AI anti-cheating analysis
       const analysisResult = await analyzeStudentActivity({
         studentCode: currentCode,
         examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
@@ -112,24 +113,35 @@ export default function SessionPage({ params }: { params: { id: string } }) {
       }
 
 
-      // Simulate test cases execution
+      // Simulate test cases execution based on code content
+      // This is a placeholder for a real execution engine.
       setTimeout(() => {
-          setTestCases([
-              { input: "[2,7,11,15], 9", status: "passed" },
-              { input: "[3,2,4], 6", status: "passed" },
-              { input: "[3,3], 6", status: "failed" },
-          ]);
-          setIsRunning(false);
+          // A simple heuristic: if the code seems to solve the problem (e.g., contains 'suma'), pass tests.
+          const isCodeCorrect = currentCode.toLowerCase().includes('suma');
+          const newStatus: TestCaseStatus = isCodeCorrect ? "passed" : "failed";
+
+          setTestCases(prev => prev.map(tc => ({ ...tc, status: newStatus })));
+          
+          if (!isCodeCorrect) {
+              toast({
+                variant: "destructive",
+                title: "Pruebas Fallidas",
+                description: "El código no parece resolver el problema. Revisa la lógica."
+              })
+          }
+
       }, 1000);
 
     } catch (error) {
-      console.error("AI analysis failed:", error);
+      console.error("AI analysis or test execution failed:", error);
       toast({
         variant: "destructive",
-        title: "Error en el Análisis de IA",
-        description: "No se pudo completar el análisis de la IA.",
+        title: "Error en la Ejecución",
+        description: "No se pudo completar el análisis o la ejecución de las pruebas.",
       });
-      setIsRunning(false);
+    } finally {
+        // We move the setIsRunning to inside the timeout to simulate the full process time
+        setTimeout(() => setIsRunning(false), 1000);
     }
   };
 
@@ -303,6 +315,3 @@ export default function SessionPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-
-    
