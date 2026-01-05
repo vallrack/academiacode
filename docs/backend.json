@@ -26,7 +26,7 @@
         "role": {
           "type": "string",
           "description": "The user's role in the system.",
-          "enum": ["STUDENT", "TEACHER", "ADMIN"]
+          "enum": ["STUDENT", "TEACHER", "ADMIN", "SUPER_ADMIN"]
         }
       },
       "required": ["uid", "email", "role"]

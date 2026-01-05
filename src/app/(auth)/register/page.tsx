@@ -41,7 +41,7 @@ export default function RegisterPage() {
       const usersCollection = collection(firestore, 'users');
       const userSnapshot = await getDocs(usersCollection);
       const isFirstUser = userSnapshot.empty;
-      const role = isFirstUser ? 'ADMIN' : 'STUDENT';
+      const role = isFirstUser ? 'SUPER_ADMIN' : 'STUDENT';
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
