@@ -5,7 +5,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, orderBy, or, type DocumentData, type Query } from "firebase/firestore";
+import { useDoc } from '@/firebase/firestore/use-doc';
+import { collection, query, where, orderBy, or, type DocumentData, type Query, doc } from "firebase/firestore";
 import { Calendar, BookOpen, Users, Clock, User, PlusCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -23,16 +24,19 @@ const AssignmentCard = ({ assignment, userRole }: { assignment: DocumentData, us
     const router = useRouter();
     const firestore = useFirestore();
 
-    const { data: challenge, isLoading: loadingChallenge } = useDoc<DocumentData>(useMemoFirebase(() => {
+    const challengeRef = useMemoFirebase(() => {
         if (!firestore) return null;
         return doc(firestore, 'challenges', assignment.challengeId);
-    }, [firestore, assignment.challengeId]));
+    }, [firestore, assignment.challengeId]);
+    const { data: challenge, isLoading: loadingChallenge } = useDoc<DocumentData>(challengeRef);
 
-    const { data: target, isLoading: loadingTarget } = useDoc<DocumentData>(useMemoFirebase(() => {
+    const targetRef = useMemoFirebase(() => {
         if (!firestore) return null;
         const collectionName = assignment.targetType === 'group' ? 'groups' : 'users';
         return doc(firestore, collectionName, assignment.targetId);
-    }, [firestore, assignment.targetId, assignment.targetType]));
+    }, [firestore, assignment.targetId, assignment.targetType]);
+    const { data: target, isLoading: loadingTarget } = useDoc<DocumentData>(targetRef);
+
 
     const isLoading = loadingChallenge || loadingTarget;
 
@@ -136,6 +140,9 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     );
   }
 
+  // Add this check to prevent runtime errors when userProfile is loading.
+  if (!userProfile) return null;
+
   if (error) {
     return (
        <Alert variant="destructive">
@@ -163,14 +170,9 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
 
       {assignments && assignments.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {/* Re-import useDoc inside the map or pass it down if needed */}
-            {assignments.map((assignment) => {
-                // This is a simplified example; for performance, you'd want to fetch docs efficiently
-                // For now, we'll re-import a hook that can fetch a doc by ID.
-                const { doc } = require('firebase/firestore');
-                const { useDoc } = require('@/firebase/firestore/use-doc');
-                return <AssignmentCard key={assignment.id} assignment={assignment} userRole={userProfile.role} />
-            })}
+            {assignments.map((assignment) => (
+                <AssignmentCard key={assignment.id} assignment={assignment} userRole={userProfile.role} />
+            ))}
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16 mt-4">
