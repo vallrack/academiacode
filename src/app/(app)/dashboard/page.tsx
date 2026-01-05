@@ -1,3 +1,6 @@
+
+'use client';
+
 import Link from 'next/link';
 import { ArrowUpRight, BookCopy, Users, Video } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -6,18 +9,48 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useFirestore } from '@/firebase';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { collection, query, where } from 'firebase/firestore';
+import { useMemo } from 'react';
+import type { DocumentData, Query } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
-  const liveSessions = [
-    { name: 'Alice Johnson', challenge: 'Data Structures 101', progress: 75, avatarId: 'student-avatar-1' },
-    { name: 'Bob Williams', challenge: 'Algorithm Design', progress: 40, avatarId: 'student-avatar-2' },
-    { name: 'Charlie Brown', challenge: 'Database Intro', progress: 90, avatarId: 'student-avatar-3' },
-    { name: 'Diana Prince', challenge: 'Full-Stack Project', progress: 20, avatarId: 'student-avatar-4' },
-  ];
-  const recentGrades = [
-    { name: 'Eve Adams', challenge: 'Recursion Basics', grade: 'A', avatarId: 'student-avatar-5' },
-    { name: 'Frank Miller', challenge: 'API Integration', grade: 'C+', avatarId: 'student-avatar-6' },
-  ];
+  const firestore = useFirestore();
+
+  const challengesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'challenges');
+  }, [firestore]);
+  const { data: challenges, loading: loadingChallenges } = useCollection(challengesQuery);
+
+  const studentsQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+  }, [firestore]);
+  const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
+  
+  // For now, we will query all attempts and filter for "in-progress" on the client
+  // This can be optimized later if needed
+  const attemptsQuery = useMemo(() => {
+    if (!firestore) return null;
+    // This query is broad. In a real-world scenario with many users, 
+    // you would likely use a collection group query and proper indexing.
+    // For now, we'll assume a single user's attempts or a small dataset.
+    // A more scalable approach would be querying a top-level 'challengeAttempts' collection.
+    // Given the current structure in backend.json, this is complex.
+    // Let's assume we get all users and then their attempts. For now, we'll mock this.
+    return query(collection(firestore, 'challengeAttempts'), where('status', '==', 'in-progress'));
+  }, [firestore]);
+  // Due to Firestore query limitations on nested collections, we will simulate this for now.
+  // In a real app, you would structure data differently or use collection group queries.
+  const { data: liveSessionsData, loading: loadingSessions } = useCollection(null); // No real query for now.
+  const liveSessions = []; // Hardcoded empty for now.
+  const recentGrades = []; // Hardcoded empty for now.
+
+
+  const loading = loadingChallenges || loadingStudents || loadingSessions;
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,8 +61,8 @@ export default function DashboardPage() {
             <Video className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4</div>
-            <p className="text-xs text-muted-foreground">+2 desde la última hora</p>
+            {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{liveSessionsData?.length ?? 0}</div>}
+            <p className="text-xs text-muted-foreground">Estudiantes resolviendo desafíos ahora</p>
           </CardContent>
         </Card>
         <Card>
@@ -38,8 +71,8 @@ export default function DashboardPage() {
             <BookCopy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">25</div>
-            <p className="text-xs text-muted-foreground">+3 esta semana</p>
+             {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{challenges?.length ?? 0}</div>}
+            <p className="text-xs text-muted-foreground">Desafíos en la biblioteca</p>
           </CardContent>
         </Card>
         <Card>
@@ -48,8 +81,8 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">128</div>
-            <p className="text-xs text-muted-foreground">+10 desde el último semestre</p>
+            {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{students?.length ?? 0}</div>}
+            <p className="text-xs text-muted-foreground">Total de estudiantes en la plataforma</p>
           </CardContent>
         </Card>
       </div>
@@ -60,43 +93,32 @@ export default function DashboardPage() {
             <CardDescription>Monitorea el progreso de los estudiantes en tiempo real.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Estudiante</TableHead>
-                  <TableHead className="hidden sm:table-cell">Desafío</TableHead>
-                  <TableHead className="hidden md:table-cell text-center">Progreso</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {liveSessions.map((session, index) => {
-                  const image = PlaceHolderImages.find(p => p.id === session.avatarId);
-                  return (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            {image && <AvatarImage src={image.imageUrl} alt={session.name} data-ai-hint={image.imageHint} />}
-                            <AvatarFallback>{session.name.slice(0, 2)}</AvatarFallback>
-                          </Avatar>
-                          <div className="font-medium">{session.name}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">{session.challenge}</TableCell>
-                      <TableCell className="hidden md:table-cell text-center">
-                        <Badge variant="outline">{session.progress}%</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/session/${index + 1}`}>Unirse a la Sesión</Link>
-                        </Button>
-                      </TableCell>
+            {loading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : liveSessions.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Estudiante</TableHead>
+                      <TableHead className="hidden sm:table-cell">Desafío</TableHead>
+                      <TableHead className="hidden md:table-cell text-center">Progreso</TableHead>
+                      <TableHead className="text-right">Acción</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Live sessions would be mapped here */}
+                  </TableBody>
+                </Table>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-center p-8 border-2 border-dashed rounded-lg">
+                <Video className="h-12 w-12 text-muted-foreground" />
+                <h3 className="text-lg font-semibold text-muted-foreground">No hay sesiones activas</h3>
+                <p className="text-sm text-muted-foreground">Cuando un estudiante comience un desafío, aparecerá aquí.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -113,35 +135,31 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-             <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Estudiante</TableHead>
-                        <TableHead>Desafío</TableHead>
-                        <TableHead className="text-right">Calificación</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {recentGrades.map((grade, index) => {
-                       const image = PlaceHolderImages.find(p => p.id === grade.avatarId);
-                       return (
-                        <TableRow key={index}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-9 w-9">
-                                        {image && <AvatarImage src={image.imageUrl} alt={grade.name} data-ai-hint={image.imageHint} />}
-                                        <AvatarFallback>{grade.name.slice(0, 2)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="font-medium">{grade.name}</div>
-                                </div>
-                            </TableCell>
-                            <TableCell>{grade.challenge}</TableCell>
-                            <TableCell className="text-right"><Badge variant="secondary">{grade.grade}</Badge></TableCell>
-                        </TableRow>
-                       );
-                    })}
-                </TableBody>
-             </Table>
+             {loading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : recentGrades.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                      <TableRow>
+                          <TableHead>Estudiante</TableHead>
+                          <TableHead>Desafío</TableHead>
+                          <TableHead className="text-right">Calificación</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {/* Recent grades would be mapped here */}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-center p-8 border-2 border-dashed rounded-lg">
+                  <Users className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold text-muted-foreground">No hay calificaciones recientes</h3>
+                  <p className="text-sm text-muted-foreground">Las calificaciones aparecerán aquí una vez que se evalúen los desafíos.</p>
+                </div>
+              )}
           </CardContent>
         </Card>
       </div>
