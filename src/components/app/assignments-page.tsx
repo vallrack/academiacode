@@ -21,7 +21,7 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
   const [isFormOpen, setIsFormOpen] = useState(false);
   const router = useRouter();
 
-  if (loadingProfile || !userProfile) {
+  if (loadingProfile) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -37,23 +37,40 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     );
   }
 
+  // Si no hay perfil de usuario (por ej. error de carga), no se puede hacer nada
+  if (!userProfile) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Error de Perfil de Usuario</AlertTitle>
+        <AlertDescription>No se pudo cargar el perfil del usuario. No se pueden mostrar las asignaciones.</AlertDescription>
+      </Alert>
+    );
+  }
+
+
   const assignmentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile || loadingProfile) return null;
+    if (!firestore) return null;
 
     const assignmentsRef = collection(firestore, 'assignments');
 
     if (userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN') {
       return query(assignmentsRef, orderBy('assignedAt', 'desc'));
     }
-
+    
+    // Para estudiantes, usamos una consulta OR para obtener asignaciones individuales y de grupo.
+    // Esto requerirá un índice compuesto en Firestore.
+    // Firebase proporcionará un enlace en la consola de errores del navegador para crearlo.
     const studentClauses = [where('targetId', '==', userProfile.uid)];
     if(userProfile.groupId) {
         studentClauses.push(where('targetId', '==', userProfile.groupId))
     }
-    return query(assignmentsRef, or(...studentClauses), orderBy('assignedAt', 'desc'));
 
+    return query(
+        assignmentsRef, 
+        or(...studentClauses),
+    );
 
-  }, [firestore, userProfile?.uid, userProfile?.role, userProfile?.groupId, loadingProfile]);
+  }, [firestore, userProfile]);
 
   const { data: assignments, isLoading, error } = useCollection<DocumentData>(assignmentsQuery);
 
@@ -96,7 +113,10 @@ export default function AssignmentsPage({ userProfile, loadingProfile }: Assignm
     return (
        <Alert variant="destructive">
           <AlertTitle>Error al cargar asignaciones</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
+          <AlertDescription>
+            {error.message}
+            <p className="mt-2 text-xs"><b>Nota para el desarrollador:</b> Este error puede ocurrir si un índice de Firestore requerido no existe. Revisa la consola del navegador para ver un enlace para crear el índice automáticamente.</p>
+          </AlertDescription>
         </Alert>
     );
   }
