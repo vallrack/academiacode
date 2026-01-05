@@ -42,7 +42,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <SidebarInset>
            <AuthState>
             <div className="flex h-full flex-col">
-                <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
+                <header className="sticky top-0 flex h-14 shrink-0 items-center gap-4 border-b bg-background px-4 lg:h-[60px] lg:px-6">
                     <div className="md:hidden">
                         <SidebarTrigger />
                     </div>
