@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers } from 'lucide-react';
+import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers, UserCog } from 'lucide-react';
 import { useUser } from '@/firebase/auth/use-user';
 import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -20,6 +20,7 @@ const allMenuItems = [
     { icon: BookOpen, label: 'Desafíos', href: '/challenges', roles: ['TEACHER', 'SUPER_ADMIN'] },
     { icon: Layers, label: 'Grupos', href: '/groups', roles: ['TEACHER', 'SUPER_ADMIN'] },
     { icon: Users, label: 'Estudiantes', href: '/students', roles: ['TEACHER', 'SUPER_ADMIN'] },
+    { icon: UserCog, label: 'Usuarios', href: '/users', roles: ['SUPER_ADMIN'] },
     { icon: BarChart3, label: 'Resultados', href: '/results', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
 ];
 
@@ -208,3 +209,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+    

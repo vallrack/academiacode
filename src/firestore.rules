@@ -121,12 +121,11 @@ service cloud.firestore {
      * @principle Enforces strict data ownership, allowing users to manage only their own profile.
      */
     match /users/{userId} {
-      // Allow admins/teachers to list users, but individual users can only get their own document.
       allow list: if isTeacherOrAdmin();
       allow get: if isOwner(userId) || isTeacherOrAdmin();
-      allow create: if isOwner(userId) || request.auth == null; // Allow creation for new unauthenticated users
-      allow update: if isOwner(userId); // A user can update their own profile.
-      allow delete: if isOwner(userId); // A user can delete their own profile.
+      allow create: if isOwner(userId) || request.auth == null; 
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     /**
@@ -242,5 +241,4 @@ service cloud.firestore {
   }
 }
 
-    
     
