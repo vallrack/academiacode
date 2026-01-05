@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [adminKey, setAdminKey] = useState('');
   const [loading, setLoading] = useState(false);
   const auth = useAuth();
   const firestore = useFirestore();
@@ -37,11 +38,26 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // Clave secreta para crear SUPER_ADMIN (cámbiala por algo más seguro)
+      const SUPER_ADMIN_KEY = 'academia2025';
+      const TEACHER_KEY = 'teacher2025';
+      
       // Check if any user exists to determine role
       const usersCollection = collection(firestore, 'users');
       const userSnapshot = await getDocs(usersCollection);
       const isFirstUser = userSnapshot.empty;
-      const role = isFirstUser ? 'SUPER_ADMIN' : 'STUDENT';
+      
+      // Determinar el rol basado en la clave ingresada
+      let role = 'STUDENT'; // Por defecto
+      
+      if (adminKey === SUPER_ADMIN_KEY) {
+        role = 'SUPER_ADMIN';
+      } else if (adminKey === TEACHER_KEY) {
+        role = 'TEACHER';
+      } else if (isFirstUser) {
+        // El primer usuario siempre es SUPER_ADMIN
+        role = 'SUPER_ADMIN';
+      }
       
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -57,13 +73,9 @@ export default function RegisterPage() {
 
       toast({
         title: '¡Cuenta Creada!',
-        description: 'Te has registrado correctamente. Serás redirigido.',
+        description: `Te has registrado correctamente como ${role}.`,
       });
-      
-      // Redirect after a short delay to allow the toast to be seen
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      router.push('/dashboard');
 
     } catch (error: any) {
       console.error('Error creando cuenta:', error);
@@ -72,10 +84,9 @@ export default function RegisterPage() {
         title: 'Error al registrarse',
         description: error.message || 'No se pudo crear la cuenta.',
       });
-      setLoading(false); // Make sure loading is stopped on error
-    } 
-    // We don't set loading to false in the `finally` block anymore,
-    // because we want the button to stay disabled until redirection happens.
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -116,10 +127,25 @@ export default function RegisterPage() {
             <Input 
               id="password" 
               type="password" 
-              required
+              required 
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="adminKey">
+              Clave Especial (Opcional)
+              <span className="text-xs text-gray-500 ml-2">
+                Para Admin o Profesor
+              </span>
+            </Label>
+            <Input 
+              id="adminKey" 
+              type="password" 
+              placeholder="Déjalo vacío si eres estudiante"
+              value={adminKey}
+              onChange={(e) => setAdminKey(e.target.value)}
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
