@@ -7,25 +7,30 @@ import { PlusCircle, Play } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useState } from "react";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useFirestore } from "@/firebase";
+import { collection, DocumentData, Query } from "firebase/firestore";
+import { useMemo } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Challenge = {
   id: string;
   title: string;
   language: string;
-  status: "Borrador" | "Publicado";
+  status: "draft" | "published" | "archived";
 };
 
 export default function ChallengesPage() {
-    const [challenges, setChallenges] = useState<Challenge[]>([
-        { id: "1", title: "Two Sum", language: "JavaScript", status: "Publicado" },
-        { id: "2", title: "FizzBuzz", language: "Python", status: "Publicado" },
-        { id: "3", title: "Reverse a String", language: "Java", status: "Borrador" },
-        { id: "4", title: "Data Structure Validation", language: "C++", status: "Publicado" },
-        { id: "5", title: "Palindrome Check", language: "TypeScript", status: "Borrador" },
-    ]);
+    const firestore = useFirestore();
+    
+    const challengesQuery = useMemo(() => {
+        if (!firestore) return null;
+        return collection(firestore, "challenges") as Query<Challenge & DocumentData>;
+    }, [firestore]);
 
-  const hasChallenges = challenges.length > 0;
+    const { data: challenges, loading } = useCollection(challengesQuery);
+
+    const hasChallenges = !loading && challenges && challenges.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +49,13 @@ export default function ChallengesPage() {
             <CardDescription>Administra y crea desafíos de código aquí.</CardDescription>
           </CardHeader>
           <CardContent>
-            {hasChallenges ? (
+            {loading ? (
+                 <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </div>
+            ) : hasChallenges ? (
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -62,8 +73,8 @@ export default function ChallengesPage() {
                                     <Badge variant="outline">{challenge.language}</Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={challenge.status === 'Publicado' ? 'secondary' : 'outline'}>
-                                        {challenge.status}
+                                    <Badge variant={challenge.status === 'published' ? 'secondary' : 'outline'}>
+                                        {challenge.status === 'draft' ? 'Borrador' : challenge.status === 'published' ? 'Publicado' : 'Archivado'}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -98,3 +109,4 @@ export default function ChallengesPage() {
     </div>
   );
 }
+

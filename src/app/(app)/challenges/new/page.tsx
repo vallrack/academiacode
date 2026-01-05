@@ -25,6 +25,9 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
+import { useUser } from "@/firebase/auth/use-user";
+import { useFirestore } from "@/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 export default function NewChallengePage() {
   const [title, setTitle] = useState("");
@@ -34,8 +37,10 @@ export default function NewChallengePage() {
   const [allowInteractive, setAllowInteractive] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title || !description || !language) {
       toast({
         variant: "destructive",
@@ -44,13 +49,44 @@ export default function NewChallengePage() {
       });
       return;
     }
+    
+    if (!user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Debes iniciar sesión para crear un desafío.",
+      });
+      return;
+    }
 
-    console.log({ title, language, description, testCases, allowInteractive });
-    toast({
-      title: "¡Desafío Guardado!",
-      description: `El desafío "${title}" ha sido guardado.`,
-    });
-    router.push("/challenges");
+    try {
+      const challengesCollection = collection(firestore, 'challenges');
+      await addDoc(challengesCollection, {
+        title,
+        description,
+        language,
+        testCases,
+        allowInteractiveApis: allowInteractive,
+        status: "draft", // Or "published" depending on your logic
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+      });
+
+      toast({
+        title: "¡Desafío Guardado!",
+        description: `El desafío "${title}" ha sido guardado.`,
+      });
+      router.push("/challenges");
+
+    } catch (error) {
+      console.error("Error saving challenge: ", error);
+      toast({
+        variant: "destructive",
+        title: "Error al guardar",
+        description: "No se pudo guardar el desafío en la base de datos.",
+      });
+    }
+
   };
 
   return (
@@ -160,3 +196,4 @@ export default function NewChallengePage() {
     </div>
   );
 }
+
