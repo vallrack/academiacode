@@ -1,340 +1,146 @@
+'use client';
 
-"use client";
-
-import Image from 'next/image';
-import { CodeXml, FileText, Mic, MonitorPlay, PanelRight, Play, Share2, ShieldAlert, Video, Terminal } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from 'react';
-import { analyzeStudentActivity, AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import React, { use } from 'react';
+import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, type DocumentData } from 'firebase/firestore';
-import { useDoc } from '@/firebase/firestore/use-doc';
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { useUserProfile } from '@/contexts/user-profile-context';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Clock } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
-type TestCaseStatus = "pending" | "passed" | "failed";
 
-type TestCaseResult = {
-  input: any;
-  expectedOutput: any;
-  status: TestCaseStatus;
-  actualOutput?: any;
-};
+interface SessionPageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function SessionPage({ params }: { params: { id: string } }) {
-  const { toast } = useToast();
-  const student = {
-    name: "Alice Johnson",
-    avatarId: "student-avatar-1",
-  }
-  const studentAvatar = PlaceHolderImages.find(p => p.id === student.avatarId);
-  const instructorAvatar = PlaceHolderImages.find(p => p.id === 'user-avatar');
-
+export default function SessionPage({ params }: SessionPageProps) {
+  // Unwrap params using React.use()
+  const { id: challengeId } = use(params);
+  
+  const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
+  const router = useRouter();
+
 
   const challengeRef = useMemoFirebase(() => {
-    const challengeId = params.id;
     if (!firestore || !challengeId) return null;
     return doc(firestore, 'challenges', challengeId);
-  }, [firestore, params.id]);
+  }, [firestore, challengeId]);
 
   const { data: challenge, isLoading: isLoadingChallenge } = useDoc<DocumentData>(challengeRef);
 
-  const [testCases, setTestCases] = useState<TestCaseResult[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [aiReport, setAiReport] = useState<{ risk: string; report: string } | null>(null);
-  const [studentCode, setStudentCode] = useState('');
-  const [terminalOutput, setTerminalOutput] = useState<string | null>(null);
-  const [evaluationMode, setEvaluationMode] = useState<'function' | 'interactive'>('function');
+  const isLoading = loadingProfile || isLoadingChallenge;
 
-
-  useEffect(() => {
-    if (challenge && challenge.testCases) {
-      try {
-        const parsedTestCases = JSON.parse(challenge.testCases);
-        setTestCases(parsedTestCases.map((tc: any) => ({ ...tc, status: 'pending' })));
-        // Default to function mode, will be checked on run
-      } catch (e) {
-        console.error("Failed to parse test cases JSON:", e);
-        toast({
-            variant: "destructive",
-            title: "Error en Casos de Prueba",
-            description: "El formato de los casos de prueba del desafío es inválido.",
-        });
-        setTestCases([]);
-      }
-    }
-    
-    if (challenge?.language === 'javascript') {
-        // Set a default code structure based on whether it's interactive or not
-        if(challenge.allowInteractiveApis){
-            const initialCode = `// Pide dos números al usuario y muestra la suma\nlet numero1 = parseFloat(prompt("Ingresa el primer número:"));\nlet numero2 = parseFloat(prompt("Ingresa el segundo número:"));\nlet suma = numero1 + numero2;\nalert("La suma es: " + suma);`;
-            setStudentCode(initialCode);
-        } else {
-            const initialCode = `// El desafío requiere una función llamada 'suma'\nfunction suma(a, b) {\n  // Escribe tu código aquí\n  return a + b;\n}`;
-            setStudentCode(initialCode);
-        }
-    } else {
-        setStudentCode('');
-    }
-  }, [challenge, toast]);
-  
-
-  const handleRunCode = async () => {
-    if (!challenge || !studentCode) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se ha podido cargar el desafío o el editor de código está vacío.",
-      });
-      return;
-    }
-
-    setIsRunning(true);
-    setAiReport(null);
-    setTerminalOutput(null);
-    setTestCases(prev => prev.map(tc => ({ ...tc, status: 'pending', actualOutput: undefined })));
-
-    toast({
-      title: "Ejecutando Análisis y Evaluación...",
-      description: "La IA está analizando el código y evaluando la lógica.",
-    });
-
-    try {
-      const result: AIAntiCheatingOutput = await analyzeStudentActivity({
-        studentCode: studentCode,
-        examDetails: `Challenge: ${challenge.title}. Description: ${challenge.description}`,
-        testCases: challenge.testCases,
-        allowInteractiveApis: challenge.allowInteractiveApis,
-      });
-
-      setAiReport({
-        risk: result.riskAssessment,
-        report: result.report
-      });
-
-      // The AI is now responsible for evaluating test cases for all code structures.
-      setTestCases(result.testCaseResults);
-      
-      const allTestsPassed = result.testCaseResults.every(tc => tc.status === 'passed');
-
-      if (result.testCaseResults.length > 0) {
-        if (allTestsPassed) {
-          toast({
-            title: "¡Pruebas Superadas!",
-            description: "La IA ha determinado que tu lógica es correcta para todos los casos.",
-          });
-        } else {
-          toast({
-              variant: "destructive",
-              title: "Pruebas Fallidas",
-              description: "Algunos casos de prueba no pasaron. Revisa el reporte de la IA.",
-          });
-        }
-      } else {
-         toast({
-          title: "Análisis de Script Completado",
-          description: "La IA ha evaluado la lógica de tu script.",
-        });
-      }
-      
-      if (result.riskAssessment.toLowerCase() !== 'bajo') {
-        toast({
-          variant: "destructive",
-          title: `Riesgo de Trampa Detectado: ${result.riskAssessment}`,
-          description: "La IA ha marcado una posible irregularidad. Revisa el reporte.",
-        });
-      }
-
-    } catch (error) {
-      console.error("AI analysis and evaluation failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Error en la Evaluación",
-        description: "No se pudo completar el análisis de la IA.",
-      });
-    } finally {
-        setIsRunning(false);
-    }
-  };
-
-  const getBadgeVariant = (status: TestCaseStatus) => {
-    switch (status) {
-        case "passed":
-            return "secondary";
-        case "failed":
-            return "destructive";
-        default:
-            return "outline";
-    }
-  };
-
-  const getBadgeText = (status: TestCaseStatus) => {
-    switch (status) {
-        case "passed":
-            return "Pasó";
-        case "failed":
-            return "Falló";
-        default:
-            return "Pendiente";
-    }
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
-  const getRiskVariant = (risk: string) => {
-    switch (risk.toLowerCase()) {
-      case 'alto':
-        return 'destructive';
-      case 'medio':
-        return 'default'; // yellow-ish, needs custom styling if not default
-      default:
-        return 'secondary';
-    }
+  if (!userProfile) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error de Perfil de Usuario</AlertTitle>
+        <AlertDescription>No se pudo cargar el perfil del usuario. Por favor, recarga la página.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!challenge) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Desafío no encontrado</AlertTitle>
+        <AlertDescription>No se pudo encontrar el desafío solicitado.</AlertDescription>
+      </Alert>
+    );
+  }
+  
+  const handleStartSession = () => {
+    router.push(`/session/ide/${challengeId}`);
   };
 
+
   return (
-    <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
-      <div className="flex flex-col gap-6 lg:col-span-2">
-        <Tabs defaultValue="ide" className="flex h-full flex-col">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
-            <TabsList className='w-full sm:w-auto'>
-              <TabsTrigger value="ide" className='flex-1'><CodeXml className="mr-2 h-4 w-4" /> Modo IDE</TabsTrigger>
-              <TabsTrigger value="whiteboard" className='flex-1'><MonitorPlay className="mr-2 h-4 w-4" /> Pizarra</TabsTrigger>
-            </TabsList>
-            <Badge variant="outline" className="flex items-center gap-2 border-yellow-500/50 text-yellow-600 w-full sm:w-auto justify-center">
-                <ShieldAlert className="h-4 w-4" />
-                <span>Supervisión por IA Activa</span>
+    <div className="container mx-auto py-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Sesión de Desafío</h1>
+        <p className="text-muted-foreground mt-2">
+          {userProfile.role === 'STUDENT' 
+            ? 'Completa este desafío para mejorar tus habilidades' 
+            : 'Revisa los detalles de este desafío'}
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">{challenge.title || 'Desafío'}</CardTitle>
+              <CardDescription className="mt-2">{challenge.description || 'Sin descripción'}</CardDescription>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              ID: {challengeId}
             </Badge>
           </div>
-          <TabsContent value="ide" className="mt-4 flex-grow">
-            <Card className="flex h-full flex-col">
-                <CardHeader>
-                    <CardTitle>main.{challenge?.language === 'python' ? 'py' : 'js'}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                    <Textarea
-                        value={studentCode}
-                        onChange={(e) => setStudentCode(e.target.value)}
-                        placeholder="Escribe tu código aquí..."
-                        className="h-full min-h-[300px] resize-none border-0 bg-muted/50 font-mono text-sm focus-visible:ring-0"
-                        aria-label="Editor de Código"
-                        disabled={isLoadingChallenge}
-                    />
-                </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="whiteboard" className="mt-4 flex-grow">
-            <Card className="h-full min-h-[400px]">
-              <CardContent className="flex h-full items-center justify-center rounded-lg bg-muted/50 p-6">
-                <p className="text-muted-foreground">Área de pizarra para dibujo colaborativo.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <Card>
-            <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  {studentAvatar && <AvatarImage src={studentAvatar.imageUrl} alt={student.name} data-ai-hint={studentAvatar.imageHint} />}
-                  <AvatarFallback>{student.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <CardTitle>{student.name}</CardTitle>
-                    <CardDescription>En línea</CardDescription>
-                </div>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
-                {instructorAvatar && (
-                    <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
-                        <Image fill src={instructorAvatar.imageUrl} className="object-cover" alt="Video del Instructor" data-ai-hint={instructorAvatar.imageHint}/>
-                        <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-xs text-white">Dr. Evans (Tú)</div>
-                    </div>
-                )}
-                 {studentAvatar && (
-                    <div className="relative aspect-video w-full overflow-hidden rounded-md bg-muted">
-                        <Image fill src={studentAvatar.imageUrl} className="object-cover" alt="Video del Estudiante" data-ai-hint={studentAvatar.imageHint}/>
-                        <div className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-xs text-white">{student.name}</div>
-                    </div>
-                 )}
-            </CardContent>
-            <CardFooter className="flex justify-around p-4">
-                <Button variant="outline" size="icon"><Mic className="h-5 w-5"/></Button>
-                <Button variant="outline" size="icon"><Video className="h-5 w-5"/></Button>
-                <Button variant="outline" size="icon"><Share2 className="h-5 w-5"/></Button>
-                <Button variant="destructive" size="icon"><PanelRight className="h-5 w-5"/></Button>
-            </CardFooter>
-        </Card>
-
-        <Card className="flex flex-grow flex-col">
-            {isLoadingChallenge ? (
-                <div className="p-6 space-y-4">
-                    <Skeleton className="h-8 w-3/4" />
-                    <Skeleton className="h-4 w-1/2" />
-                    <div className="space-y-2 pt-4">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-5/6" />
-                    </div>
-                </div>
-            ) : challenge ? (
-                <>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><FileText /> Desafío: {challenge.title}</CardTitle>
-                    <CardDescription>{challenge.language}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-4 text-sm">
-                    <div>
-                    <p className="mb-4 whitespace-pre-wrap">{challenge.description}</p>
-                    </div>
-                    {aiReport && (
-                        <Alert variant={getRiskVariant(aiReport.risk)}>
-                        <ShieldAlert className="h-4 w-4" />
-                        <AlertTitle>Reporte de la IA (Riesgo: {aiReport.risk})</AlertTitle>
-                        <AlertDescription>
-                            {aiReport.report}
-                        </AlertDescription>
-                        </Alert>
-                    )}
-                </CardContent>
-                </>
-            ) : (
-                <CardContent className="flex flex-col items-center justify-center text-center flex-grow">
-                    <p className='text-destructive'>No se pudo cargar el desafío.</p>
-                </CardContent>
-            )}
-
-            <div className="mt-auto flex flex-col gap-4 p-4">
-                <Separator />
-                
-                {testCases.length > 0 && (
-                  <div>
-                      <h3 className="mb-2 font-semibold">Casos de Prueba</h3>
-                      <div className="space-y-2 text-sm">
-                          {testCases.map((testCase, index) => (
-                              <div key={index} className="flex items-center justify-between rounded-md p-2 bg-muted/50">
-                                  <span className="font-mono text-xs">Entrada: {JSON.stringify(testCase.input)}, Esperado: {JSON.stringify(testCase.expectedOutput)}</span>
-                                  <Badge variant={getBadgeVariant(testCase.status)}>{getBadgeText(testCase.status)}</Badge>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-                )}
-                
-                <Button className="w-full" onClick={handleRunCode} disabled={isRunning || isLoadingChallenge}>
-                    {isRunning ? "Evaluando con IA..." : <><Play className="mr-2 h-4 w-4" /> Evaluar con IA</>}
-                </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {challenge.difficulty && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Dificultad:</span>
+              <Badge variant={
+                challenge.difficulty === 'easy' ? 'default' : 
+                challenge.difficulty === 'medium' ? 'secondary' : 
+                'destructive'
+              }>
+                {challenge.difficulty === 'easy' ? 'Fácil' : 
+                 challenge.difficulty === 'medium' ? 'Medio' : 
+                 'Difícil'}
+              </Badge>
             </div>
-        </Card>
-      </div>
+          )}
+
+          {challenge.topics && challenge.topics.length > 0 && (
+            <div>
+              <span className="text-sm font-medium block mb-2">Temas:</span>
+              <div className="flex flex-wrap gap-2">
+                {challenge.topics.map((topic: string, index: number) => (
+                  <Badge key={index} variant="outline">{topic}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {challenge.createdAt && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span>
+                Creado: {challenge.createdAt?.toDate?.()?.toLocaleDateString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+       <div className="flex justify-end">
+            <Button onClick={handleStartSession}>
+                Comenzar Sesión de Práctica
+            </Button>
+        </div>
     </div>
   );
 }
