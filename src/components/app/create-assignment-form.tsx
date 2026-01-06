@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -34,26 +33,26 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
   });
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, 'groups');
-  }, [firestore, user]);
+  }, [firestore]);
 
   const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
 
   const challengesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, 'challenges');
-  }, [firestore, user]);
+  }, [firestore]);
 
   const { data: challenges, isLoading: loadingChallenges } = useCollection<DocumentData>(challengesQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || targetType !== 'student') return null;
+    if (!firestore || targetType !== 'student') return null;
     return query(
       collection(firestore, 'users'),
       where('role', '==', 'STUDENT')
     );
-  }, [firestore, user, targetType]);
+  }, [firestore, targetType]);
 
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
