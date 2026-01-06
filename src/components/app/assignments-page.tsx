@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, type DocumentData } from "firebase/firestore";
+import { collection, query, where, or, type DocumentData } from "firebase/firestore";
 import { Calendar, BookOpen, Users, Clock, User, PlusCircle, AlertCircle, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -46,8 +46,8 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
     }
     
     // For students, query for assignments targeted at their group OR directly at them.
-    // NOTE: This requires a composite index in Firestore. If you get an error, 
-    // the error message from Firestore in the browser console will include a link to create it.
+    // This query is now safe because the security rules allow any authenticated user to list assignments.
+    // The client-side filtering below will ensure they only see what's relevant to them.
     if (userProfile.groupId) {
       return query(assignmentsRef, where('targetId', 'in', [userProfile.groupId, userProfile.uid]));
     }
@@ -72,18 +72,19 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
 
 
   const assignments = useMemo(() => {
-    if (!assignmentsRaw) return [];
+    if (!assignmentsRaw || !userProfile) return [];
     
-    // Filter assignments for students with a group client-side
-    const filteredAssignments = userProfile?.role === 'STUDENT' && userProfile?.groupId
-      ? assignmentsRaw.filter(a => a.targetId === userProfile.groupId || (a.targetType === 'student' && a.targetId === userProfile.uid))
-      : assignmentsRaw;
-
-    return [...filteredAssignments].sort((a, b) => {
-      const dateA = a.assignedAt?.toDate?.() || new Date(a.assignedAt || 0);
-      const dateB = b.assignedAt?.toDate?.() || new Date(b.assignedAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    });
+    // For students, ensure they only see assignments targeted at them or their group.
+    // This is an extra layer of client-side validation.
+    if (userProfile.role === 'STUDENT') {
+      return assignmentsRaw.filter(a => 
+        (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
+        (a.targetType === 'student' && a.targetId === userProfile.uid)
+      ).sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
+    }
+    
+    // For teachers/admins, just sort the raw data.
+    return [...assignmentsRaw].sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
   }, [assignmentsRaw, userProfile]);
 
   const isLoading = loadingProfile || loadingAssignments;
@@ -103,7 +104,7 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
           {canCreate && <Skeleton className="h-10 w-40" />}
         </div>
         <div className="grid gap-4">
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
       </div>
     );
@@ -123,26 +124,21 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error al cargar asignaciones</AlertTitle>
-        <AlertDescription>{error.message}<br /><span className="text-xs mt-2 block">Esto puede deberse a un problema de permisos o de índices de Firestore.</span></AlertDescription>
+        <AlertTitle>Error al Cargar Asignaciones</AlertTitle>
+        <AlertDescription>No se pudieron cargar las asignaciones. Esto puede ser un problema de permisos. Intenta recargar la página. <br /><span className="text-xs mt-2 block">{error.message}</span></AlertDescription>
       </Alert>
     );
   }
 
   const formatDate = (timestamp: any) => {
-    let date: Date;
-    if (timestamp?.toDate) { date = timestamp.toDate(); }
-    else if (typeof timestamp === 'string') { date = new Date(timestamp); }
-    else { return 'Fecha no disponible'; }
+    if (!timestamp) return 'Fecha no disponible';
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   const isOverdue = (dueDate: any) => {
     if (!dueDate) return false;
-    let date: Date;
-    if (dueDate?.toDate) { date = dueDate.toDate(); }
-    else if (typeof dueDate === 'string') { date = new Date(dueDate); }
-    else { return false; }
+    const date = dueDate?.toDate ? dueDate.toDate() : new Date(dueDate);
     return date < new Date();
   };
 
@@ -198,7 +194,7 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
       )}
 
 
-      {!assignments || assignments.length === 0 ? (
+      {assignments.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16 mt-4">
           <div className="flex flex-col items-center gap-2 text-center">
             <BookOpen className="h-12 w-12 text-muted-foreground" />

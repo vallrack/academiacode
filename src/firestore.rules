@@ -38,16 +38,6 @@ service cloud.firestore {
       );
     }
 
-    function canViewAssignment(assignmentData) {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && (
-        userData.role == 'SUPER_ADMIN' || 
-        userData.role == 'TEACHER' || 
-        (assignmentData.targetType == 'group' && userData.groupId == assignmentData.targetId) ||
-        (assignmentData.targetType == 'student' && request.auth.uid == assignmentData.targetId)
-      );
-    }
-
     // --------------------------------------------------------------------------
     // Reglas de Usuario
     // --------------------------------------------------------------------------
@@ -90,8 +80,10 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
+        // Permite leer y listar si el usuario está autenticado
+        // El filtrado específico por rol se hace en el cliente
         allow read, list: if isSignedIn();
-        allow write: if isTeacherOrAdmin();
+        allow create, update, delete: if isTeacherOrAdmin();
     }
 
     match /challenges/{challengeId} {
