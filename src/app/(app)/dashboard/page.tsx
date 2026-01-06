@@ -4,7 +4,7 @@ import { DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherDashboard } from '@/components/app/teacher-dashboard';
 import { StudentDashboard } from '@/components/app/student-dashboard';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { SuperAdminDashboard } from '@/components/app/super-admin-dashboard';
 
 export default function DashboardPage({ userProfile, loadingProfile }: { userProfile: DocumentData | null, loadingProfile: boolean }) {
 
@@ -22,7 +22,18 @@ export default function DashboardPage({ userProfile, loadingProfile }: { userPro
     );
   }
 
-  const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
+  const renderDashboardByRole = () => {
+    switch (userProfile.role) {
+      case 'SUPER_ADMIN':
+        return <SuperAdminDashboard userProfile={userProfile} />;
+      case 'TEACHER':
+        return <TeacherDashboard userProfile={userProfile} />;
+      case 'STUDENT':
+        return <StudentDashboard userProfile={userProfile} />;
+      default:
+        return <p>Rol de usuario no reconocido.</p>;
+    }
+  };
 
-  return isTeacherOrAdmin ? <TeacherDashboard userProfile={userProfile} /> : <StudentDashboard userProfile={userProfile} />;
+  return renderDashboardByRole();
 }
