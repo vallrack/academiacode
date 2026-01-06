@@ -34,7 +34,6 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (error: any) {
-      console.error('Error signing in:', error);
       toast({
         variant: 'destructive',
         title: 'Error al iniciar sesión',
