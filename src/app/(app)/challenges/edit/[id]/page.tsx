@@ -73,9 +73,9 @@ export default function EditChallengePage() {
   const { user } = useUser();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return collection(firestore, 'groups') as Query<Group & DocumentData>;
-  }, [firestore]);
+  }, [firestore, user]);
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
   const studentsQuery = useMemoFirebase(() => {
@@ -346,3 +346,5 @@ export default function EditChallengePage() {
     </div>
   );
 }
+
+    

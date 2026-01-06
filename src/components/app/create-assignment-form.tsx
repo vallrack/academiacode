@@ -33,26 +33,26 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
   });
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return collection(firestore, 'groups');
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
 
   const challengesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return collection(firestore, 'challenges');
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: challenges, isLoading: loadingChallenges } = useCollection<DocumentData>(challengesQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || targetType !== 'student') return null;
+    if (!firestore || !user || targetType !== 'student') return null;
     return query(
       collection(firestore, 'users'),
       where('role', '==', 'STUDENT')
     );
-  }, [firestore, targetType]);
+  }, [firestore, user, targetType]);
 
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
@@ -207,3 +207,5 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     </div>
   );
 }
+
+    

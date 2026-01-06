@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { useUser } from '@/firebase/auth/use-user';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
@@ -45,11 +46,12 @@ export default function NewUserPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user } = useUser();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
@@ -244,3 +246,5 @@ export default function NewUserPage() {
     </div>
   );
 }
+
+    
