@@ -33,6 +33,7 @@ export default function DashboardPage() {
       case 'STUDENT':
         return <StudentDashboard userProfile={userProfile} />;
       default:
+        // Pasar userProfile como prop al componente StudentsPage
         return <p>Rol de usuario no reconocido.</p>;
     }
   };

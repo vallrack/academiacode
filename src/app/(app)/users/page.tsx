@@ -37,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUserProfile } from "@/contexts/user-profile-context";
 
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
@@ -54,7 +55,8 @@ const roleMap: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
-export default function UsersPage({ userProfile }: { userProfile?: DocumentData }) {
+export default function UsersPage() {
+  const { userProfile } = useUserProfile();
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -64,9 +66,10 @@ export default function UsersPage({ userProfile }: { userProfile?: DocumentData 
   const [isDeleting, setIsDeleting] = useState(false);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Solo ejecuta la query si el usuario es SUPER_ADMIN
+    if (!firestore || userProfile?.role !== 'SUPER_ADMIN') return null;
     return collection(firestore, "users") as Query<User & DocumentData>;
-  }, [firestore]);
+  }, [firestore, userProfile]);
 
   const { data: users, loading } = useCollection(usersQuery);
 
@@ -267,4 +270,3 @@ export default function UsersPage({ userProfile }: { userProfile?: DocumentData 
     </>
   );
 }
-

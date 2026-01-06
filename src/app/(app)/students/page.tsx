@@ -37,7 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useUser } from "@/firebase/auth/use-user";
+import { useUserProfile } from "@/contexts/user-profile-context";
 
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
@@ -56,7 +56,8 @@ const roleMap: Record<UserRole, string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
-export default function StudentsPage({ userProfile }: { userProfile?: DocumentData }) {
+export default function StudentsPage() {
+  const { userProfile } = useUserProfile();
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -66,15 +67,18 @@ export default function StudentsPage({ userProfile }: { userProfile?: DocumentDa
   const [isDeleting, setIsDeleting] = useState(false);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !userProfile) return null;
+
+    const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
+    if (!isTeacherOrAdmin) return null;
+
     return query(collection(firestore, "users"), where("role", "==", "STUDENT")) as Query<User & DocumentData>;
-  }, [firestore]);
+  }, [firestore, userProfile]);
 
   const { data: students, loading } = useCollection(studentsQuery);
 
   const hasStudents = !loading && students && students.length > 0;
   
-  // Client-side permission check
   if (userProfile?.role !== 'TEACHER' && userProfile?.role !== 'SUPER_ADMIN') {
     return (
       <Card>
@@ -207,7 +211,7 @@ export default function StudentsPage({ userProfile }: { userProfile?: DocumentDa
                                     value={student.role}
                                     onValueChange={(role) => handleRoleChange(student.id, role as UserRole)}
                                   >
-                                    <DropdownMenuRadioItem value="STUDENT">Estudiante</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="STUDENT">Estudiante</adina</DropdownMenuRadioItem>
                                     <DropdownMenuRadioItem value="TEACHER">Profesor</DropdownMenuRadioItem>
                                     <DropdownMenuRadioItem value="SUPER_ADMIN">Super Admin</DropdownMenuRadioItem>
                                   </DropdownMenuRadioGroup>
