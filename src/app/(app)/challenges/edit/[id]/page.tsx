@@ -52,6 +52,7 @@ type Student = { id: string; displayName: string, role: string, email: string };
 export default function EditChallengePage() {
   const [title, setTitle] = useState('');
   const [language, setLanguage] = useState('');
+  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [testCases, setTestCases] = useState('');
   const [allowInteractive, setAllowInteractive] = useState(false);
@@ -73,15 +74,15 @@ export default function EditChallengePage() {
   const { user } = useUser();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, 'groups') as Query<Group & DocumentData>;
-  }, [firestore, user]);
+  }, [firestore]);
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return query(collection(firestore, 'users'), where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
-  }, [firestore, user]);
+  }, [firestore]);
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   useEffect(() => {
@@ -96,6 +97,7 @@ export default function EditChallengePage() {
           const data = challengeDocSnap.data();
           setTitle(data.title || '');
           setLanguage(data.language || '');
+          setCategory(data.category || '');
           setDescription(data.description || '');
           setTestCases(data.testCases || '');
           setAllowInteractive(data.allowInteractiveApis || false);
@@ -117,7 +119,7 @@ export default function EditChallengePage() {
   const handleUpdate = async () => {
     if (!firestore || !challengeId || !user) return;
 
-    if (!title || !description || !language) {
+    if (!title || !description || !language || !category) {
       toast({ variant: 'destructive', title: 'Error de Validación', description: 'Completa todos los campos.' });
       return;
     }
@@ -130,6 +132,7 @@ export default function EditChallengePage() {
         title,
         description,
         language,
+        category,
         testCases,
         allowInteractiveApis: allowInteractive,
       });
@@ -261,6 +264,10 @@ export default function EditChallengePage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid gap-3">
+                  <Label htmlFor="category">Categoría</Label>
+                  <Input id="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="ej. Semana 1"/>
               </div>
               <div className="grid gap-3">
                 <Label htmlFor="description">Descripción</Label>

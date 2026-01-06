@@ -116,6 +116,62 @@
         "instructorId"
       ]
     },
+    "Challenge": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Challenge",
+      "type": "object",
+      "description": "Represents a coding challenge or problem.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Challenge entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the challenge."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the problem, constraints, and examples."
+        },
+        "language": {
+          "type": "string",
+          "description": "The primary programming language for the challenge (e.g., 'javascript', 'python')."
+        },
+        "category": {
+          "type": "string",
+          "description": "A category for classifying the challenge (e.g., 'Week 1', 'Arrays', 'Beginner')."
+        },
+        "testCases": {
+          "type": "string",
+          "description": "A JSON string representing an array of test cases for the challenge."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "published", "archived"],
+          "description": "The status of the challenge."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The UID of the user who created the challenge."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the challenge was created."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "language",
+        "category",
+        "status",
+        "createdBy",
+        "createdAt"
+      ]
+    },
     "Assignment": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Assignment",
@@ -347,6 +403,22 @@
             {
               "name": "groupId",
               "description": "The unique identifier of the group."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/challenges/{challengeId}",
+        "definition": {
+          "entityName": "Challenge",
+          "schema": {
+            "$ref": "#/backend/entities/Challenge"
+          },
+          "description": "Stores all coding challenges available on the platform. Includes a 'category' for classification.",
+          "params": [
+            {
+              "name": "challengeId",
+              "description": "The unique identifier of the challenge."
             }
           ]
         }

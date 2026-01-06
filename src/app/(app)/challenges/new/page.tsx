@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -35,6 +34,7 @@ import { FirestorePermissionError } from "@/firebase/errors";
 export default function NewChallengePage() {
   const [title, setTitle] = useState("Sumar dos números en JavaScript");
   const [language, setLanguage] = useState("javascript");
+  const [category, setCategory] = useState("Semana 1");
   const [description, setDescription] = useState("Crea una función llamada 'suma' que acepte dos números como parámetros y devuelva su suma.");
   const [testCases, setTestCases] = useState(`[
   {
@@ -58,7 +58,7 @@ export default function NewChallengePage() {
   const firestore = useFirestore();
 
   const handleSave = async () => {
-    if (!title || !description || !language) {
+    if (!title || !description || !language || !category) {
       toast({
         variant: "destructive",
         title: "Error de Validación",
@@ -94,6 +94,7 @@ export default function NewChallengePage() {
       title,
       description,
       language,
+      category,
       testCases,
       allowInteractiveApis: allowInteractive,
       status: "draft",
@@ -195,6 +196,17 @@ export default function NewChallengePage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+             <div className="grid gap-3">
+              <Label htmlFor="category">Categoría</Label>
+              <Input
+                id="category"
+                type="text"
+                className="w-full"
+                placeholder='ej. "Semana 1", "Conceptos Básicos"'
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
             </div>
             <div className="grid gap-3">
               <Label htmlFor="description">Descripción</Label>

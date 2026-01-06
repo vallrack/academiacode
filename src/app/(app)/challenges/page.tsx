@@ -45,6 +45,7 @@ type Challenge = {
   id: string;
   title: string;
   language: string;
+  category: string;
   status: ChallengeStatus;
 };
 
@@ -162,6 +163,7 @@ export default function ChallengesPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Título</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Categoría</TableHead>
                                     <TableHead className="hidden sm:table-cell">Lenguaje</TableHead>
                                     <TableHead className="hidden md:table-cell">Estado</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
@@ -171,6 +173,7 @@ export default function ChallengesPage() {
                                 {challenges.map((challenge) => (
                                     <TableRow key={challenge.id}>
                                         <TableCell className="font-medium">{challenge.title}</TableCell>
+                                        <TableCell className="hidden sm:table-cell">{challenge.category}</TableCell>
                                         <TableCell className="hidden sm:table-cell">
                                             <Badge variant="outline">{challenge.language}</Badge>
                                         </TableCell>
