@@ -44,7 +44,7 @@ service cloud.firestore {
     
     match /users/{userId} {
       allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
-      allow list: if isTeacherOrAdmin();
+      allow list: if isTeacherOrAdmin() || (request.query.where.get('groupId')[2] == getUserData(request.auth.uid).groupId);
       allow create: if request.auth == null || isAdmin() || isOwner(userId);
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
