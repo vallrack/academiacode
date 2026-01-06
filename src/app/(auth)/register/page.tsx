@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, type DocumentData, type Query } from 'firebase/firestore';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useMemoFirebase, useUser as useAuthUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,11 +43,12 @@ export default function RegisterPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuthUser();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null; // No ejecutar si no hay usuario
     return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 

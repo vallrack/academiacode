@@ -2,7 +2,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useFirestore, useMemoFirebase, useAuth } from "@/firebase";
+import { useFirestore, useMemoFirebase } from "@/firebase";
+import { useAuth } from '@/firebase/auth/use-user';
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, addDoc, query, where, type DocumentData, Timestamp } from "firebase/firestore";
 import { X } from 'lucide-react';

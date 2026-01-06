@@ -101,17 +101,17 @@ export default function NewUserPage() {
       // as the new user. This is a known limitation of the client SDK.
       // A proper solution would involve a Cloud Function.
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const newUser = userCredential.user;
 
       const userProfileData = {
-        uid: user.uid,
+        uid: newUser.uid,
         displayName,
         email,
         role,
         groupId: role === 'STUDENT' ? selectedGroup : null,
       };
 
-      await setDoc(doc(firestore, 'users', user.uid), userProfileData);
+      await setDoc(doc(firestore, 'users', newUser.uid), userProfileData);
 
       toast({
         title: "¡Usuario Creado!",
