@@ -29,35 +29,23 @@ service cloud.firestore {
     }
 
     function isSameGroup(targetUserId) {
-      let currentUserData = getUserData(request.auth.uid);
-      let targetUserData = get(/databases/$(database)/documents/users/$(targetUserId)).data;
-      
-      if (currentUserData.role == 'SUPER_ADMIN' || currentUserData.role == 'TEACHER') {
-        return true;
-      }
-      
-      return currentUserData.groupId == targetUserData.groupId && currentUserData.groupId != null;
+      let currentUser = getUserData(request.auth.uid);
+      let targetUser = getUserData(targetUserId);
+      return isSignedIn() && (
+        currentUser.role == 'SUPER_ADMIN' || 
+        currentUser.role == 'TEACHER' || 
+        (currentUser.groupId == targetUser.groupId && currentUser.groupId != null)
+      );
     }
 
-    // Verifica si el estudiante puede ver esta asignación según targetType y targetId
     function canViewAssignment(assignmentData) {
       let userData = getUserData(request.auth.uid);
-      
-      // Profesores y admin ven todo
-      if (userData.role == 'SUPER_ADMIN' || userData.role == 'TEACHER') {
-        return true;
-      }
-      
-      // Si es estudiante, verificar según targetType
-      if (assignmentData.targetType == 'group') {
-        // La asignación es para un grupo, verificar si el estudiante pertenece a ese grupo
-        return userData.groupId == assignmentData.targetId;
-      } else if (assignmentData.targetType == 'student') {
-        // La asignación es para un estudiante específico
-        return request.auth.uid == assignmentData.targetId;
-      }
-      
-      return false;
+      return isSignedIn() && (
+        userData.role == 'SUPER_ADMIN' || 
+        userData.role == 'TEACHER' || 
+        (assignmentData.targetType == 'group' && userData.groupId == assignmentData.targetId) ||
+        (assignmentData.targetType == 'student' && request.auth.uid == assignmentData.targetId)
+      );
     }
 
     // --------------------------------------------------------------------------
@@ -79,68 +67,44 @@ service cloud.firestore {
         allow create: if isOwner(userId) && request.resource.data.studentId == userId;
         allow update, delete: if isOwner(userId) || isAdmin();
       }
-
-      match /payments/{paymentId} {
-        allow read, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isAdmin();
+      
+      match /payments/{id} { 
+          allow read, list: if isOwner(userId) || isAdmin();
+          allow create: if isOwner(userId) && request.resource.data.userId == userId;
+          allow update, delete: if isAdmin();
       }
-
-      match /subscriptions/{subscriptionId} {
-        allow read, list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.userId == userId;
-        allow update, delete: if isAdmin();
+      match /subscriptions/{id} { 
+          allow read, list: if isOwner(userId) || isAdmin();
+          allow create: if isOwner(userId) && request.resource.data.userId == userId;
+          allow update, delete: if isAdmin();
       }
     }
 
     // --------------------------------------------------------------------------
-    // Grupos
+    // Grupos e Assignments
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      allow read, list: if true;
+      allow read, list: if true; // ✅ Acceso público para lectura (necesario para registro)
       allow write: if isTeacherOrAdmin();
     }
 
-    // --------------------------------------------------------------------------
-    // Asignaciones - REGLAS SIMPLIFICADAS PARA DEBUGGING
-    // --------------------------------------------------------------------------
-    
     match /assignments/{assignmentId} {
         allow read, list: if isSignedIn();
         allow write: if isTeacherOrAdmin();
     }
 
-    // --------------------------------------------------------------------------
-    // Desafíos
-    // --------------------------------------------------------------------------
-    
     match /challenges/{challengeId} {
       allow read, list: if isSignedIn();
       allow write: if isTeacherOrAdmin();
     }
 
-    // --------------------------------------------------------------------------
-    // Cursos
-    // --------------------------------------------------------------------------
-    
     match /courses/{courseId} {
       allow read, list: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.instructorId == request.auth.uid;
-      allow update: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
+      allow update, delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
 
-      match /assignments/{assignmentId} {
-        allow read, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && 
-          get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
-
-        match /testcases/{testcaseId} {
-          allow read, list: if isSignedIn();
-          allow create, update, delete: if isSignedIn() && 
-            get(/databases/$(database)/documents/courses/$(courseId)).data.instructorId == request.auth.uid;
-        }
-      }
+      match /assignments/{id} { allow read, write: if isSignedIn(); }
     }
   }
 }

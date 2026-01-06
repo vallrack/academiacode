@@ -85,7 +85,7 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      allow read, list: if isSignedIn();
+      allow read, list: if true; // ✅ Acceso público para lectura (necesario para registro)
       allow write: if isTeacherOrAdmin();
     }
 
