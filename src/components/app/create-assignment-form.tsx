@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
-import { useAuth } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/auth/use-user';
 import { useCollection } from "@/firebase/firestore/use-collection";
 import { collection, addDoc, query, where, type DocumentData, Timestamp } from "firebase/firestore";
 import { X } from 'lucide-react';
@@ -22,7 +22,7 @@ interface CreateAssignmentFormProps {
 
 export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssignmentFormProps) {
   const firestore = useFirestore();
-  const { user } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetType, setTargetType] = useState<'group' | 'student'>('group');
@@ -208,4 +208,3 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     </div>
   );
 }
-
