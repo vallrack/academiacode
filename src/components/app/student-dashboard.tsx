@@ -23,13 +23,14 @@ function GroupMatesComponent({ userProfile }: { userProfile: DocumentData }) {
     const firestore = useFirestore();
 
     const groupMatesQuery = useMemoFirebase(() => {
-        if (!firestore || !userProfile?.groupId) return null;
+        // Solo ejecutar la query si el usuario es estudiante y tiene un groupId
+        if (!firestore || !userProfile?.groupId || userProfile.role !== 'STUDENT') return null;
         
         return query(
-        collection(firestore, 'users'),
-        where('groupId', '==', userProfile.groupId)
+            collection(firestore, 'users'),
+            where('groupId', '==', userProfile.groupId)
         );
-    }, [firestore, userProfile?.groupId]);
+    }, [firestore, userProfile?.groupId, userProfile?.role]);
 
     const { data: groupMates, isLoading, error } = useCollection<DocumentData>(groupMatesQuery);
     
@@ -38,6 +39,7 @@ function GroupMatesComponent({ userProfile }: { userProfile: DocumentData }) {
     }
 
     if (error) {
+        console.error('Error loading group mates:', error);
         return null; // Don't render the card if there's an error
     }
     
@@ -134,7 +136,9 @@ export function StudentDashboard({ userProfile }: { userProfile: DocumentData })
                 </Card>
             </div>
             <div className="lg:col-span-1 flex flex-col gap-6">
-                {userProfile.groupId && <GroupMatesComponent userProfile={userProfile} />}
+                 {userProfile.groupId && userProfile.role === 'STUDENT' && (
+                    <GroupMatesComponent userProfile={userProfile} />
+                )}
             </div>
         </div>
     );

@@ -43,13 +43,29 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
+      // Lectura individual de un usuario
       allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
-      allow list: if isTeacherOrAdmin() || (request.query.where.get('groupId')[2] == getUserData(request.auth.uid).groupId);
+      
+      // Listado de usuarios
+      // Profesores y admins pueden listar todos
+      // Estudiantes solo pueden listar si hacen query con where('groupId', '==', su_grupo)
+      allow list: if isTeacherOrAdmin() || (
+        isSignedIn() && 
+        request.query.where != null &&
+        request.query.where[0][0] == 'groupId' &&
+        request.query.where[0][2] == getUserData(request.auth.uid).groupId
+      );
+      
+      // Creación de usuarios
       allow create: if request.auth == null || isAdmin() || isOwner(userId);
+      
+      // Actualización de usuarios
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
         resource.data.role == request.resource.data.role
       )) || isAdmin();
+      
+      // Eliminación de usuarios
       allow delete: if isAdmin();
 
       match /submissions/{submissionId} {
