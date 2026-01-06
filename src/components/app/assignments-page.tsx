@@ -35,14 +35,15 @@ export default function AssignmentsPageContent() {
   
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
+  
+  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile) return null;
 
     const assignmentsRef = collection(firestore, 'assignments');
-    const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
-    if (isTeacherOrAdmin) {
+    if (canCreate) {
       if (filterGroup) {
         return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
       }
@@ -57,20 +58,20 @@ export default function AssignmentsPageContent() {
     }
 
     return query(assignmentsRef, where('targetId', '==', userProfile.uid));
-  }, [firestore, userProfile, filterGroup, filterStudent]);
+  }, [firestore, userProfile, filterGroup, filterStudent, canCreate]);
   
   const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
   
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !canCreate) return null;
     return collection(firestore, 'groups');
-  }, [firestore]);
+  }, [firestore, canCreate]);
   const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
   
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !canCreate) return null;
     return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore]);
+  }, [firestore, canCreate]);
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
   const assignments = useMemo(() => {
@@ -87,7 +88,6 @@ export default function AssignmentsPageContent() {
   }, [assignmentsRaw, userProfile]);
 
   const isLoading = loadingProfile || loadingAssignments;
-  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
   
   const handleClearFilters = () => {
     setFilterGroup('');
