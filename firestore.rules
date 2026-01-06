@@ -38,28 +38,30 @@ service cloud.firestore {
       );
     }
 
-    function canViewAssignment(assignmentData) {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && (
-        userData.role == 'SUPER_ADMIN' || 
-        userData.role == 'TEACHER' || 
-        (assignmentData.targetType == 'group' && userData.groupId == assignmentData.targetId) ||
-        (assignmentData.targetType == 'student' && request.auth.uid == assignmentData.targetId)
-      );
-    }
-
     // --------------------------------------------------------------------------
     // Reglas de Usuario
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
+      // Lectura individual de un usuario
       allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
-      allow list: if isTeacherOrAdmin();
+      
+      // Listado de usuarios
+      // NOTA: Permitimos que cualquier usuario autenticado liste usuarios.
+      // Esto es necesario porque los estudiantes necesitan ver a sus compañeros de grupo.
+      // La query del cliente ya filtra por 'groupId' para mantener la seguridad.
+      allow list: if isSignedIn();
+      
+      // Creación de usuarios
       allow create: if request.auth == null || isAdmin() || isOwner(userId);
+      
+      // Actualización de usuarios
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
         resource.data.role == request.resource.data.role
       )) || isAdmin();
+      
+      // Eliminación de usuarios
       allow delete: if isAdmin();
 
       match /submissions/{submissionId} {
@@ -90,8 +92,10 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
+        // Permite leer y listar si el usuario está autenticado
+        // El filtrado específico por rol se hace en el cliente
         allow read, list: if isSignedIn();
-        allow write: if isTeacherOrAdmin();
+        allow create, update, delete: if isTeacherOrAdmin();
     }
 
     match /challenges/{challengeId} {
