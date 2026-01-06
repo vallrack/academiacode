@@ -29,46 +29,58 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
 
-  const assignmentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
+  // 🔍 LOGS DE DEPURACIÓN - AGREGAR ESTO
+  React.useEffect(() => {
+    console.log('=== DEBUG ASSIGNMENTS PAGE ===');
+    console.log('userProfile:', userProfile);
+    console.log('loadingProfile:', loadingProfile);
+    console.log('firestore:', firestore ? 'initialized' : 'null');
+  }, [userProfile, loadingProfile, firestore]);
 
+  const assignmentsQuery = useMemoFirebase(() => {
+    console.log('🔍 Creating assignments query...');
+    if (!firestore || !userProfile) {
+      console.log('❌ No query - missing:', { firestore: !!firestore, userProfile: !!userProfile });
+      return null;
+    }
+
+    console.log('✅ Query created for role:', userProfile.role);
     const assignmentsRef = collection(firestore, 'assignments');
     const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
     if (isTeacherOrAdmin) {
       if (filterGroup) {
+        console.log('📊 Teacher/Admin query - filtered by group:', filterGroup);
         return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
       }
       if (filterStudent) {
+        console.log('📊 Teacher/Admin query - filtered by student:', filterStudent);
          return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
       }
+      console.log('📊 Teacher/Admin query - all assignments');
       return query(assignmentsRef);
     }
     
-    // For students, query for assignments targeted at their group OR directly at them.
-    // This query is now safe because the security rules allow any authenticated user to list assignments.
-    // The client-side filtering below will ensure they only see what's relevant to them.
     if (userProfile.groupId) {
+      console.log('📊 Student query - group:', userProfile.groupId, 'uid:', userProfile.uid);
       return query(assignmentsRef, where('targetId', 'in', [userProfile.groupId, userProfile.uid]));
     }
 
-    // Student without a group
+    console.log('📊 Student query - no group, uid:', userProfile.uid);
     return query(assignmentsRef, where('targetId', '==', userProfile.uid));
   }, [firestore, userProfile, filterGroup, filterStudent]);
   
   const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
-  
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'groups');
-  }, [firestore]);
-  const { data: groups, isLoading: loadingGroups } = useCollection<Group>(groupsQuery);
-  
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore]);
-  const { data: students, isLoading: loadingStudents } = useCollection<Student>(studentsQuery);
+
+  // 🔍 AGREGAR ESTE LOG TAMBIÉN
+  React.useEffect(() => {
+    console.log('📦 Assignments data received:', {
+      assignmentsRaw,
+      count: assignmentsRaw?.length || 0,
+      loading: loadingAssignments,
+      error: error?.message
+    });
+  }, [assignmentsRaw, loadingAssignments, error]);
 
 
   const assignments = useMemo(() => {
