@@ -14,7 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { useUserProfile } from '@/contexts/user-profile-context';
 
-type Group = { id: string; name: string };
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
+type Group = { 
+  id: string; 
+  name: string;
+  schedule: GroupSchedule | string;
+};
 type Student = { id: string; displayName: string };
 
 export default function AssignmentsPageContent() {
@@ -83,6 +93,18 @@ export default function AssignmentsPageContent() {
     setFilterGroup('');
     setFilterStudent('');
   };
+  
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
+
 
   if (isLoading) {
     return (
@@ -158,7 +180,7 @@ export default function AssignmentsPageContent() {
                       <Select value={filterGroup} onValueChange={(value) => { setFilterGroup(value); setFilterStudent(''); }}>
                           <SelectTrigger id="filter-group"><SelectValue placeholder="Todos los grupos" /></SelectTrigger>
                           <SelectContent>
-                              {groups?.map(group => <SelectItem key={group.id} value={group.id}>{(group as Group).name}</SelectItem>)}
+                              {groups?.map(group => <SelectItem key={group.id} value={group.id}>{(group as Group).name} - {formatSchedule((group as Group).schedule)}</SelectItem>)}
                           </SelectContent>
                       </Select>
                     )}
