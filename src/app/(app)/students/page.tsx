@@ -211,7 +211,7 @@ export default function StudentsPage() {
                                     value={student.role}
                                     onValueChange={(role) => handleRoleChange(student.id, role as UserRole)}
                                   >
-                                    <DropdownMenuRadioItem value="STUDENT">Estudiante</adina</DropdownMenuRadioItem>
+                                    <DropdownMenuRadioItem value="STUDENT">Estudiante</DropdownMenuRadioItem>
                                     <DropdownMenuRadioItem value="TEACHER">Profesor</DropdownMenuRadioItem>
                                     <DropdownMenuRadioItem value="SUPER_ADMIN">Super Admin</DropdownMenuRadioItem>
                                   </DropdownMenuRadioGroup>
