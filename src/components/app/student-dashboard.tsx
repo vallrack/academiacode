@@ -92,7 +92,7 @@ export function StudentDashboard({ userProfile }: { userProfile: DocumentData })
             or(...conditions.map(([field, op, value]) => where(field, op, value)))
         ) as Query<Assignment & DocumentData>;
 
-    }, [firestore, userProfile]);
+    }, [firestore, userProfile?.uid, userProfile?.groupId]);
 
     const { data: assignments, loading } = useCollection(assignmentsQuery);
 
