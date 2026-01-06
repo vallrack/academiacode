@@ -8,6 +8,7 @@ import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, type DocumentData } from 'firebase/firestore';
 import { useDoc } from "@/firebase/firestore/use-doc";
+import { UserProfileProvider } from "@/contexts/user-profile-context";
 
 function InnerAppLayout({ children }: { children: ReactNode }) {
   const { user, loading: loadingUser } = useUser();
@@ -27,15 +28,11 @@ function InnerAppLayout({ children }: { children: ReactNode }) {
   const isLoading = loadingUser || loadingProfile;
 
   return (
-    <AppShell userProfile={userProfile} isLoading={isLoading}>
-        {React.Children.map(children, child => {
-          if (React.isValidElement(child)) {
-            // @ts-expect-error - inyectando props
-            return React.cloneElement(child, { userProfile, loadingProfile: isLoading });
-          }
-          return child;
-        })}
-    </AppShell>
+    <UserProfileProvider userProfile={userProfile} loadingProfile={isLoading}>
+      <AppShell userProfile={userProfile} isLoading={isLoading}>
+        {children}
+      </AppShell>
+    </UserProfileProvider>
   );
 }
 

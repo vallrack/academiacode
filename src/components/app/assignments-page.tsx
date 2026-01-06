@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, or, type DocumentData } from "firebase/firestore";
+import { collection, query, where, type DocumentData } from "firebase/firestore";
 import { Calendar, BookOpen, Users, Clock, User, PlusCircle, AlertCircle, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -12,16 +12,13 @@ import { useRouter } from 'next/navigation';
 import CreateAssignmentForm from '@/components/app/create-assignment-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-
-interface AssignmentsPageProps {
-  userProfile?: DocumentData;
-  loadingProfile?: boolean;
-}
+import { useUserProfile } from '@/contexts/user-profile-context';
 
 type Group = { id: string; name: string };
 type Student = { id: string; displayName: string };
 
-export default function AssignmentsPageContent({ userProfile, loadingProfile }: AssignmentsPageProps) {
+export default function AssignmentsPageContent() {
+  const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const router = useRouter();
@@ -29,65 +26,46 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
 
-  // 🔍 LOGS DE DEPURACIÓN - AGREGAR ESTO
-  React.useEffect(() => {
-    console.log('=== DEBUG ASSIGNMENTS PAGE ===');
-    console.log('userProfile:', userProfile);
-    console.log('loadingProfile:', loadingProfile);
-    console.log('firestore:', firestore ? 'initialized' : 'null');
-  }, [userProfile, loadingProfile, firestore]);
-
   const assignmentsQuery = useMemoFirebase(() => {
-    console.log('🔍 Creating assignments query...');
-    if (!firestore || !userProfile) {
-      console.log('❌ No query - missing:', { firestore: !!firestore, userProfile: !!userProfile });
-      return null;
-    }
+    if (!firestore || !userProfile) return null;
 
-    console.log('✅ Query created for role:', userProfile.role);
     const assignmentsRef = collection(firestore, 'assignments');
     const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
 
     if (isTeacherOrAdmin) {
       if (filterGroup) {
-        console.log('📊 Teacher/Admin query - filtered by group:', filterGroup);
         return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
       }
       if (filterStudent) {
-        console.log('📊 Teacher/Admin query - filtered by student:', filterStudent);
          return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
       }
-      console.log('📊 Teacher/Admin query - all assignments');
       return query(assignmentsRef);
     }
     
     if (userProfile.groupId) {
-      console.log('📊 Student query - group:', userProfile.groupId, 'uid:', userProfile.uid);
       return query(assignmentsRef, where('targetId', 'in', [userProfile.groupId, userProfile.uid]));
     }
 
-    console.log('📊 Student query - no group, uid:', userProfile.uid);
     return query(assignmentsRef, where('targetId', '==', userProfile.uid));
   }, [firestore, userProfile, filterGroup, filterStudent]);
   
   const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
-
-  // 🔍 AGREGAR ESTE LOG TAMBIÉN
-  React.useEffect(() => {
-    console.log('📦 Assignments data received:', {
-      assignmentsRaw,
-      count: assignmentsRaw?.length || 0,
-      loading: loadingAssignments,
-      error: error?.message
-    });
-  }, [assignmentsRaw, loadingAssignments, error]);
-
+  
+  const groupsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'groups');
+  }, [firestore]);
+  const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
+  
+  const studentsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+  }, [firestore]);
+  const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
   const assignments = useMemo(() => {
     if (!assignmentsRaw || !userProfile) return [];
     
-    // For students, ensure they only see assignments targeted at them or their group.
-    // This is an extra layer of client-side validation.
     if (userProfile.role === 'STUDENT') {
       return assignmentsRaw.filter(a => 
         (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
@@ -95,7 +73,6 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
       ).sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
     }
     
-    // For teachers/admins, just sort the raw data.
     return [...assignmentsRaw].sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
   }, [assignmentsRaw, userProfile]);
 
@@ -106,7 +83,6 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
     setFilterGroup('');
     setFilterStudent('');
   };
-
 
   if (isLoading) {
     return (
@@ -205,7 +181,6 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
         </div>
       )}
 
-
       {assignments.length === 0 ? (
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16 mt-4">
           <div className="flex flex-col items-center gap-2 text-center">
@@ -225,7 +200,7 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
           {assignments.map((assignment) => {
             const overdue = assignment.dueDate && isOverdue(assignment.dueDate);
             return (
-              <div key={assignment.id} className={`bg-card rounded-lg border p-6 transition-shadow hover:shadow-md ${overdue ? 'border-destructive' : 'border-border'}`}>
+              <div key={assignment.id} className={'bg-card rounded-lg border p-6 transition-shadow hover:shadow-md ${overdue ? 'border-destructive' : 'border-border'}'}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
@@ -244,7 +219,7 @@ export default function AssignmentsPageContent({ userProfile, loadingProfile }: 
                     <h3 className="text-xl font-semibold mb-3">Desafío Asignado</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-3">
                       {assignment.dueDate && (
-                        <div className={`flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                        <div className={'flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}'}>
                           <Calendar className="w-4 h-4" />
                           <span>Entrega: {formatDate(assignment.dueDate)}{overdue && <span className="ml-1">(Vencida)</span>}</span>
                         </div>

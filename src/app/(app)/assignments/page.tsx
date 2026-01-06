@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { DocumentData } from 'firebase/firestore';
 import AssignmentsPageContent from '@/components/app/assignments-page';
+import { UserProfileProvider } from '@/contexts/user-profile-context';
 
 // This is a wrapper component to pass the props from the layout to the actual page component.
-export default function AssignmentsPage({ userProfile, loadingProfile }: { userProfile?: DocumentData, loadingProfile?: boolean }) {
-  return <AssignmentsPageContent userProfile={userProfile} loadingProfile={loadingProfile} />;
+export default function AssignmentsPage() {
+  return <AssignmentsPageContent />;
 }
