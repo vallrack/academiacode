@@ -5,8 +5,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherDashboard } from '@/components/app/teacher-dashboard';
 import { StudentDashboard } from '@/components/app/student-dashboard';
 import { SuperAdminDashboard } from '@/components/app/super-admin-dashboard';
+import { useUserProfile } from '@/contexts/user-profile-context';
 
-export default function DashboardPage({ userProfile, loadingProfile }: { userProfile: DocumentData | null, loadingProfile: boolean }) {
+export default function DashboardPage() {
+  const { userProfile, loadingProfile } = useUserProfile();
 
   if (loadingProfile || !userProfile) {
     return (
