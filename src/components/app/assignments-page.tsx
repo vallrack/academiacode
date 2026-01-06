@@ -158,7 +158,7 @@ export default function AssignmentsPageContent() {
                       <Select value={filterGroup} onValueChange={(value) => { setFilterGroup(value); setFilterStudent(''); }}>
                           <SelectTrigger id="filter-group"><SelectValue placeholder="Todos los grupos" /></SelectTrigger>
                           <SelectContent>
-                              {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}
+                              {groups?.map(group => <SelectItem key={group.id} value={group.id}>{(group as Group).name}</SelectItem>)}
                           </SelectContent>
                       </Select>
                     )}
@@ -169,7 +169,7 @@ export default function AssignmentsPageContent() {
                       <Select value={filterStudent} onValueChange={(value) => { setFilterStudent(value); setFilterGroup(''); }}>
                           <SelectTrigger id="filter-student"><SelectValue placeholder="Todos los estudiantes" /></SelectTrigger>
                           <SelectContent>
-                              {students?.map(student => <SelectItem key={student.id} value={student.id}>{student.displayName}</SelectItem>)}
+                              {students?.map(student => <SelectItem key={student.id} value={student.id}>{(student as Student).displayName}</SelectItem>)}
                           </SelectContent>
                       </Select>
                     )}
@@ -200,7 +200,7 @@ export default function AssignmentsPageContent() {
           {assignments.map((assignment) => {
             const overdue = assignment.dueDate && isOverdue(assignment.dueDate);
             return (
-              <div key={assignment.id} className={'bg-card rounded-lg border p-6 transition-shadow hover:shadow-md ${overdue ? 'border-destructive' : 'border-border'}'}>
+              <div key={assignment.id} className={`bg-card rounded-lg border p-6 transition-shadow hover:shadow-md ${overdue ? 'border-destructive' : 'border-border'}`}>
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
@@ -219,7 +219,7 @@ export default function AssignmentsPageContent() {
                     <h3 className="text-xl font-semibold mb-3">Desafío Asignado</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-3">
                       {assignment.dueDate && (
-                        <div className={'flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}'}>
+                        <div className={`flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
                           <Calendar className="w-4 h-4" />
                           <span>Entrega: {formatDate(assignment.dueDate)}{overdue && <span className="ml-1">(Vencida)</span>}</span>
                         </div>
