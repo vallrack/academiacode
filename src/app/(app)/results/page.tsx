@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useMemo, useState } from 'react';
 import { useFirestore, useMemoFirebase } from '@/firebase';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, type DocumentData } from 'firebase/firestore';
+import { collection, query, where, type DocumentData, getDocs } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -52,15 +51,37 @@ export default function ResultsPage() {
   const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
+  const [managedStudentIds, setManagedStudentIds] = useState<string[] | null>(null);
 
-  const isTeacherOrAdmin = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
+  const isTeacher = userProfile?.role === 'TEACHER';
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
-  // Query para obtener todos los estudiantes (para el filtro del profesor)
+  // Query para obtener los estudiantes que un profesor puede ver
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !isTeacherOrAdmin) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore, isTeacherOrAdmin]);
-  const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
+    if (!firestore || (!isTeacher && !isSuperAdmin)) return null;
+
+    if (isSuperAdmin) {
+      return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    }
+    
+    // Teacher: Query students from managed groups
+    if (isTeacher && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
+      return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
+    }
+    
+    return null;
+  }, [firestore, userProfile, isTeacher, isSuperAdmin]);
+  const { data: students, isLoading: loadingStudents, error: studentsError } = useCollection<DocumentData>(studentsQuery);
+
+  // Effect to populate the list of student IDs a teacher manages
+  React.useEffect(() => {
+    if (isTeacher) {
+      if (students) {
+        setManagedStudentIds(students.map(s => s.id));
+      }
+    }
+  }, [students, isTeacher]);
+
 
   // Query principal de sumisiones
   const submissionsQuery = useMemoFirebase(() => {
@@ -68,21 +89,37 @@ export default function ResultsPage() {
     
     const submissionsRef = collection(firestore, 'submissions');
 
-    if (isTeacherOrAdmin) {
-      if (selectedStudent === 'all') {
-        return query(submissionsRef); // El admin/profesor ve todo
-      }
+    if (isSuperAdmin) {
+      if (selectedStudent === 'all') return query(submissionsRef);
       return query(submissionsRef, where('studentId', '==', selectedStudent));
+    }
+
+    if (isTeacher) {
+      // If student IDs are still being fetched, don't query yet.
+      if (managedStudentIds === null) return null;
+      // If teacher has no students, query for a non-existent ID to return nothing.
+      if (managedStudentIds.length === 0) return query(submissionsRef, where('studentId', '==', 'no-students'));
+
+      if (selectedStudent === 'all') {
+        return query(submissionsRef, where('studentId', 'in', managedStudentIds));
+      }
+      // If a specific student is selected, ensure they are in the managed list before querying
+      if (managedStudentIds.includes(selectedStudent)) {
+        return query(submissionsRef, where('studentId', '==', selectedStudent));
+      }
+      // If selected student is not managed, return no results.
+      return query(submissionsRef, where('studentId', '==', 'not-a-managed-student'));
     }
 
     // El estudiante solo ve lo suyo
     return query(submissionsRef, where('studentId', '==', userProfile.uid));
 
-  }, [firestore, userProfile, isTeacherOrAdmin, selectedStudent]);
+  }, [firestore, userProfile, isSuperAdmin, isTeacher, selectedStudent, managedStudentIds]);
 
-  const { data: submissions, isLoading: loadingSubmissions, error } = useCollection<DocumentData>(submissionsQuery);
+  const { data: submissions, isLoading: loadingSubmissions, error: submissionsError } = useCollection<DocumentData>(submissionsQuery);
   
-  const isLoading = loadingProfile || loadingSubmissions || (isTeacherOrAdmin && loadingStudents);
+  const isLoading = loadingProfile || loadingSubmissions || (isTeacher && loadingStudents);
+  const error = submissionsError || studentsError;
 
   const getGradeColor = (grade: number) => {
     if (grade >= 4.5) return 'text-green-600';
@@ -120,7 +157,7 @@ export default function ResultsPage() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error al Cargar Resultados</AlertTitle>
-        <AlertDescription>No se pudieron cargar los datos de las sumisiones. Error: {error.message}</AlertDescription>
+        <AlertDescription>No se pudieron cargar los datos. Error: {error.message}</AlertDescription>
       </Alert>
     );
   }
@@ -129,7 +166,7 @@ export default function ResultsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-lg font-semibold md:text-2xl">Resultados y Calificaciones</h1>
-        {isTeacherOrAdmin && (
+        {(isTeacher || isSuperAdmin) && (
           <div className="grid gap-2 w-full sm:max-w-xs">
             <Label htmlFor="student-filter">Filtrar por Estudiante</Label>
             <Select value={selectedStudent} onValueChange={setSelectedStudent}>
@@ -170,7 +207,7 @@ export default function ResultsPage() {
         <CardHeader>
           <CardTitle>Historial de Sumisiones</CardTitle>
           <CardDescription>
-            {isTeacherOrAdmin ? 'Revisa las sumisiones de los estudiantes.' : 'Aquí puedes ver un historial de tus envíos y las calificaciones obtenidas.'}
+            {(isTeacher || isSuperAdmin) ? 'Revisa las sumisiones de los estudiantes.' : 'Aquí puedes ver un historial de tus envíos y las calificaciones obtenidas.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -182,7 +219,7 @@ export default function ResultsPage() {
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full pr-4">
                         <div className="grid gap-1 text-left">
                             <p className="font-semibold">{sub.challengeTitle}</p>
-                            {isTeacherOrAdmin && (
+                            {(isTeacher || isSuperAdmin) && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <User className="w-3 h-3" />
                                     <span>{students?.find(s => s.id === sub.studentId)?.displayName || 'Estudiante desconocido'}</span>
@@ -222,7 +259,7 @@ export default function ResultsPage() {
                   No hay resultados para mostrar
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {isTeacherOrAdmin ? 'Cuando un estudiante envíe un desafío, sus resultados aparecerán aquí.' : 'Los resultados de tus desafíos aparecerán aquí después de que los envíes.'}
+                  {(isTeacher || isSuperAdmin) ? 'Cuando un estudiante envíe un desafío, sus resultados aparecerán aquí.' : 'Los resultados de tus desafíos aparecerán aquí después de que los envíes.'}
                 </p>
               </div>
             </div>
