@@ -31,17 +31,8 @@ const nextConfig: NextConfig = {
     ],
   },
   webpack: (config, { isServer }) => {
-    // This is to ensure that the Firebase Admin SDK can work correctly on the server-side.
     if (isServer) {
-        config.externals = [...config.externals, 'firebase-admin'];
-    } else {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        'async_hooks': false,
-        'fs': false,
-        'net': false,
-        'tls': false,
-      };
+      config.externals.push('firebase-admin');
     }
     return config;
   },
