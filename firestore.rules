@@ -33,20 +33,13 @@ service cloud.firestore {
       return isSignedIn() && getUserData(request.auth.uid).role == 'SUPER_ADMIN';
     }
 
-    function isSameGroup(targetUserId) {
-      let currentUser = getUserData(request.auth.uid);
-      let targetUser = getUserData(targetUserId);
-      return isSignedIn() && (
-        isAdmin() || 
-        (isTeacher() && targetUser.groupId in currentUser.managedGroupIds) ||
-        (currentUser.groupId == targetUser.groupId && currentUser.groupId != null)
-      );
-    }
-    
     function isStudentInManagedGroup(studentId) {
         let teacherData = getUserData(request.auth.uid);
         let studentData = getUserData(studentId);
-        return studentData.groupId in teacherData.managedGroupIds;
+        // Ensure teacherData and studentData and their properties are not null before access
+        return teacherData != null && teacherData.managedGroupIds != null && 
+               studentData != null && studentData.groupId != null &&
+               studentData.groupId in teacherData.managedGroupIds;
     }
 
     // --------------------------------------------------------------------------
@@ -63,7 +56,7 @@ service cloud.firestore {
       // Admins pueden listar a todos.
       // Profesores pueden listar estudiantes de los grupos que gestionan.
       allow list: if isAdmin() || 
-                     (isTeacher() && request.query.where[2] in getUserData(request.auth.uid).managedGroupIds);
+                     (isTeacher() && request.query.where.size() > 0 && request.query.where[2] in getUserData(request.auth.uid).managedGroupIds);
       
       // Creación de usuarios: Cualquiera para registrarse, o un Admin.
       allow create: if request.auth == null || isAdmin();
@@ -121,11 +114,10 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // Lectura permitida a usuarios autenticados.
-      // Profesores pueden leer los grupos que gestionan.
-      allow get: if isSignedIn();
-      allow list: if isAdmin() || (isTeacher() && groupId in getUserData(request.auth.uid).managedGroupIds);
-      allow write: if isAdmin(); // Solo admins pueden crear/modificar/eliminar grupos
+      // Lectura pública necesaria para el formulario de registro.
+      allow get, list: if true;
+      // Solo los Super Admins pueden crear, modificar o eliminar grupos.
+      allow write: if isAdmin();
     }
 
     match /assignments/{assignmentId} {
