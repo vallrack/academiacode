@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, type DocumentData } from 'firebase/firestore';
 import { useDoc } from "@/firebase/firestore/use-doc";
@@ -12,14 +12,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Play, Send, AlertCircle, BookOpen, Code, Terminal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useParams } from 'next/navigation';
 
-interface SessionIDEPageProps {
-  params: Promise<{ id: string }>;
-}
 
-export default function SessionIDEPage({ params }: SessionIDEPageProps) {
-  const resolvedParams = use(params);
-  const challengeId = resolvedParams?.id;
+export default function SessionIDEPage() {
+  const params = useParams();
+  const challengeId = Array.isArray(params.id) ? params.id[0] : params.id;
   
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -58,13 +56,14 @@ export default function SessionIDEPage({ params }: SessionIDEPageProps) {
     if (!challenge) return;
     
     try {
+      const challengeTitle = challenge.title || 'Desafío';
       // Placeholder para código por defecto según el lenguaje
       if (challenge.language === 'javascript') {
-        setCode(`// ${challenge.title}\n\nfunction solve() {\n  // Escribe tu código aquí\n  return;\n}\n`);
+        setCode(`// ${challengeTitle}\n\nfunction solve() {\n  // Escribe tu código aquí\n  return;\n}\n`);
       } else if (challenge.language === 'python') {
-        setCode(`# ${challenge.title}\n\ndef solve():\n    # Escribe tu código aquí\n    pass\n`);
+        setCode(`# ${challengeTitle}\n\ndef solve():\n    # Escribe tu código aquí\n    pass\n`);
       } else {
-        setCode(`// ${challenge.title}\n\n// Escribe tu código aquí\n`);
+        setCode(`// ${challengeTitle}\n\n// Escribe tu código aquí\n`);
       }
     } catch (err) {
       console.error('Error estableciendo código por defecto:', err);
@@ -187,7 +186,7 @@ export default function SessionIDEPage({ params }: SessionIDEPageProps) {
               <div className="flex h-full flex-col p-4">
                 <h2 className="text-sm font-semibold flex items-center gap-2 mb-2">
                   <Code className="w-4 h-4"/>
-                  Editor de Código ({challenge.language || 'javascript'})
+                  Editor de Código ({challenge.language || 'desconocido'})
                 </h2>
                 <Textarea 
                   value={code}
