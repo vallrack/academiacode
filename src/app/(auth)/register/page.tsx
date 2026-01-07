@@ -65,7 +65,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const isAdminRegistration = email.toLowerCase() === 'vallrakc67@gmail.com';
+      const isAdminRegistration = email.toLowerCase() === 'vallrack67@gmail.com';
       const finalRole: UserRole = isAdminRegistration ? 'SUPER_ADMIN' : role; 
       
       if (finalRole === 'STUDENT' && !selectedGroup) {
@@ -93,7 +93,7 @@ export default function RegisterPage() {
       });
       
       // Redirect to login page instead of trying to sign in immediately
-      // This avoids custom claims propagation timing issues
+      // This avoids the custom claims propagation timing issue
       router.push('/login');
 
     } catch (error: any) {
@@ -108,7 +108,7 @@ export default function RegisterPage() {
     }
   };
 
-  const isSuperAdminEmail = email.toLowerCase() === 'vallrakc67@gmail.com';
+  const isSuperAdminEmail = email.toLowerCase() === 'vallrack67@gmail.com';
 
   return (
     <Card className="w-full max-w-sm">
