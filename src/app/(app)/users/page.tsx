@@ -39,6 +39,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserProfile } from "@/contexts/user-profile-context";
 
+export const dynamic = 'force-dynamic';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 

@@ -40,6 +40,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/contexts/user-profile-context";
 
+export const dynamic = 'force-dynamic';
+
 type GroupSchedule = {
   days: string[];
   startTime: string;

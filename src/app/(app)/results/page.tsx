@@ -17,6 +17,8 @@ import { es } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 
+export const dynamic = 'force-dynamic';
+
 // Componente para el Gráfico de Habilidades
 function SkillsChart({ submissions }: { submissions: DocumentData[] }) {
   const skillsData = useMemo(() => {

@@ -7,6 +7,8 @@ import { StudentDashboard } from '@/components/app/student-dashboard';
 import { SuperAdminDashboard } from '@/components/app/super-admin-dashboard';
 import { useUserProfile } from '@/contexts/user-profile-context';
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const { userProfile, loadingProfile } = useUserProfile();
 

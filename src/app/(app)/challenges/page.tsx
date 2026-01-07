@@ -38,6 +38,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
 
 type ChallengeStatus = "draft" | "published" | "archived";
 
