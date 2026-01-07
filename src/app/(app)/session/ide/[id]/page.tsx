@@ -227,7 +227,7 @@ export default function SessionIDEPage() {
           <AlertTitle>Error: Desafío no Encontrado</AlertTitle>
           <AlertDescription>
             No se pudo cargar el desafío solicitado. Puede que haya sido eliminado o el ID sea incorrecto.
-          </AledrtDescription>
+          </AlertDescription>
         </Alert>
       </div>
     );
