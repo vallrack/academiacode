@@ -11,19 +11,24 @@ let auth: Auth;
 let firestore: Firestore;
 
 /**
- * Inicializa la aplicación Firebase y los SDKs del cliente.
+ * Inicializa la aplicación Firebase y los SDKs del cliente de forma idempotente.
  * Evita la reinicialización en el lado del cliente (HMR).
- * 
  * @returns Un objeto que contiene las instancias de los servicios de Firebase.
  */
 function initializeFirebaseClient() {
   if (getApps().length === 0) {
-    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("REEMPLAZA")) {
-      console.error(
-        'La configuración de Firebase está ausente o incompleta en src/firebase/config.ts. Reemplaza los valores de marcador de posición.'
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("AIza")) {
+       console.log(
+        'La configuración de Firebase está ausente o es un marcador de posición en src/firebase/config.ts. Usando configuración dummy.'
       );
       // Retornar stubs para evitar que la app crashee en el servidor o durante el build.
-      return { firebaseApp: null, auth: null, firestore: null };
+      // @ts-ignore
+      firebaseApp = { appName: 'dummy', options: {} };
+      // @ts-ignore
+      auth = { currentUser: null };
+      // @ts-ignore
+      firestore = { type: 'dummy-firestore' };
+      return { firebaseApp, auth, firestore };
     }
     firebaseApp = initializeApp(firebaseConfig);
   } else {

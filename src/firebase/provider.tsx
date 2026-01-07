@@ -17,6 +17,7 @@ interface FirebaseContextValue {
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(undefined);
 
 export function FirebaseProvider({ children }: { children: ReactNode }) {
+  // Las instancias de Firebase ya están inicializadas e importadas
   const contextValue = useMemo(() => ({
     firebaseApp,
     auth,
@@ -41,8 +42,8 @@ function useFirebaseContext() {
 
 export function useFirebaseApp(): FirebaseApp {
   const { firebaseApp } = useFirebaseContext();
-  if (!firebaseApp) {
-    throw new Error('La app de Firebase no está disponible.');
+  if (!firebaseApp || firebaseApp.options.apiKey === undefined) {
+    throw new Error('La app de Firebase no está disponible. Revisa tu configuración.');
   }
   return firebaseApp;
 }
@@ -69,6 +70,7 @@ export function useUser() {
 
 // Memoization Hook
 export function useMemoFirebase<T>(factory: () => T, deps: React.DependencyList): T {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const memoized = React.useMemo(factory, deps);
   
   if(typeof memoized === 'object' && memoized !== null) {
