@@ -22,16 +22,31 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth) {
+        toast({
+            variant: 'destructive',
+            title: 'Error de Configuración',
+            description: 'El servicio de autenticación no está disponible.',
+        });
+        return;
+    }
     setLoading(true);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
+
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+          await currentUser.getIdToken(true); // Force refresh to get custom claims
+      }
+      
       toast({
         title: '¡Bienvenido!',
         description: 'Has iniciado sesión correctamente.',
       });
+
       router.push('/dashboard');
+
     } catch (error: any) {
       toast({
         variant: 'destructive',

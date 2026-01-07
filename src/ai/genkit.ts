@@ -1,3 +1,5 @@
+'use server';
+
 import {genkit, Ai} from 'genkit';
 import {googleAI} from '@genkit-ai/google-genai';
 import * as admin from 'firebase-admin';
@@ -17,7 +19,7 @@ if (!admin.apps.length) {
   } else {
     // This will work in managed Google Cloud environments.
     // For local dev, you might need to run `gcloud auth application-default login`.
-    console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Falling back to applicationDefault().");
+    console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Falling back to applicationDefault(). For local development, ensure you are authenticated via 'gcloud auth application-default login'.");
     admin.initializeApp({
       credential: admin.credential.applicationDefault(),
     });
