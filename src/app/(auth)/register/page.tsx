@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUser } from '@/ai/create-user-flow';
-import { doc, setDoc, collection, type DocumentData, type Query } from 'firebase/firestore';
+import { collection, type DocumentData, type Query } from 'firebase/firestore';
 import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -62,7 +62,6 @@ export default function RegisterPage() {
     return "Horario no definido";
   };
 
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -81,6 +80,7 @@ export default function RegisterPage() {
         return;
       }
 
+      // Create user via server action
       await createUser({
         email,
         password,
@@ -89,15 +89,22 @@ export default function RegisterPage() {
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       });
 
-      // After the server action creates the user and profile, sign them in.
+      // Sign in the user
       if (auth) {
-          await auth.signInWithEmailAndPassword(email, password);
+        await auth.signInWithEmailAndPassword(email, password);
+        
+        // CRITICAL: Force token refresh to get custom claims
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await currentUser.getIdToken(true); // Force refresh with true parameter
+        }
       }
 
       toast({
         title: '¡Cuenta Creada y Sesión Iniciada!',
         description: `Te has registrado correctamente como ${finalRole}.`,
       });
+      
       router.push('/dashboard');
 
     } catch (error: any) {
@@ -201,7 +208,6 @@ export default function RegisterPage() {
                 )}
             </div>
           )}
-
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
