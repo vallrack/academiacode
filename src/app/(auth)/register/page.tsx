@@ -15,6 +15,8 @@ import { Logo } from '@/components/app/logo';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '@/firebase';
 
 type GroupSchedule = {
   days: string[];
@@ -41,6 +43,7 @@ export default function RegisterPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -78,7 +81,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Create user via server action
+      // Create user via server action, ensuring the correct role is passed
       await createUser({
         email,
         password,
@@ -87,14 +90,17 @@ export default function RegisterPage() {
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       });
 
+      // Sign in the user to get a session
+      if (auth) {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+
       toast({
-        title: '¡Cuenta Creada Exitosamente!',
-        description: 'Ahora puedes iniciar sesión con tus credenciales.',
+        title: '¡Cuenta Creada y Sesión Iniciada!',
+        description: `Te has registrado correctamente. Redirigiendo al panel...`,
       });
       
-      // Redirect to login page instead of trying to sign in immediately
-      // This avoids the custom claims propagation timing issue
-      router.push('/login');
+      router.push('/dashboard');
 
     } catch (error: any) {
       console.error('Error durante el registro:', error);

@@ -51,6 +51,7 @@ const createUserFlow = ai.defineFlow(
         displayName,
         role,
         groupId: role === 'STUDENT' && groupId ? groupId : null,
+        managedGroupIds: role === 'TEACHER' ? [] : null, // Start teachers with no groups
       };
 
       await getFirestore().collection('users').doc(userRecord.uid).set(userProfileData);
@@ -63,7 +64,11 @@ const createUserFlow = ai.defineFlow(
 
     } catch (error: any) {
       console.error("Error in createUserFlow: ", error);
-      throw new Error(`Failed to create user. ${error.message || error.code || 'Unknown error'}`);
+      // Check for a specific auth error code for better messages
+      if (error.code === 'auth/email-already-exists') {
+          throw new Error('El correo electrónico ya está en uso por otra cuenta.');
+      }
+      throw new Error(`Failed to create user. ${error.message || 'Unknown error'}`);
     }
   }
 );
