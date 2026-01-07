@@ -1,14 +1,13 @@
 
-// The Firebase config object is built from environment variables.
-// This is a secure way to manage your Firebase credentials.
+// Lee las variables de entorno para la configuración de Firebase.
+// Esto asegura que tanto el entorno local como el de producción usen la misma configuración.
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyB64Hi6l2uV8yvWBDH75qoNOSklsP7_BOk",
-  authDomain: "academiacode-f42d8.firebaseapp.com",
-  projectId: "academiacode-f42d8",
-  storageBucket: "academiacode-f42d8.appspot.com",
-  messagingSenderId: "466122254810",
-  appId: "1:466122254810:web:1af2fa59e104d11eabf8e3",
-  measurementId: "G-R2BC7GQQSV"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
-
