@@ -76,9 +76,11 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const role = 'STUDENT'; 
+      // Determine role based on email for initial admin setup
+      const isAdminRegistration = email.toLowerCase() === 'vallrakc67@gmail.com';
+      const role = isAdminRegistration ? 'SUPER_ADMIN' : 'STUDENT'; 
       
-      if (!selectedGroup) {
+      if (role === 'STUDENT' && !selectedGroup) {
         toast({
             variant: 'destructive',
             title: 'Campo Requerido',
@@ -97,7 +99,8 @@ export default function RegisterPage() {
         displayName: displayName || user.email?.split('@')[0] || '',
         photoURL: user.photoURL || '',
         role: role,
-        groupId: selectedGroup,
+        // Only assign groupId if student
+        groupId: role === 'STUDENT' ? selectedGroup : null,
       };
 
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -106,7 +109,7 @@ export default function RegisterPage() {
 
       toast({
         title: '¡Cuenta Creada!',
-        description: `Te has registrado correctamente como Estudiante.`,
+        description: `Te has registrado correctamente como ${role === 'SUPER_ADMIN' ? 'Super Admin' : 'Estudiante'}.`,
       });
       router.push('/dashboard');
 
@@ -122,7 +125,7 @@ export default function RegisterPage() {
         const permissionError = new FirestorePermissionError({
             path: `users/${auth.currentUser?.uid || 'new-user'}`,
             operation: 'create',
-            requestResourceData: { email, displayName, role: 'STUDENT' },
+            requestResourceData: { email, displayName },
         });
         errorEmitter.emit('permission-error', permissionError);
         toast({
@@ -142,7 +145,7 @@ export default function RegisterPage() {
         <Logo className="mb-2" />
         <CardTitle className="text-2xl">Crear una Cuenta</CardTitle>
         <CardDescription>
-          Ingresa tus datos para registrarte como estudiante.
+          Ingresa tus datos para registrarte.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -181,31 +184,34 @@ export default function RegisterPage() {
             />
           </div>
           
-          <div className="grid gap-2">
-              <Label htmlFor="group">Grupo</Label>
-              {loadingGroups ? (
-                  <Skeleton className="h-10 w-full" />
-              ) : (
-                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                      <SelectTrigger id="group" aria-label="Selecciona un grupo">
-                          <SelectValue placeholder="Selecciona tu grupo y jornada" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {groups && groups.length > 0 ? (
-                              groups.map(group => (
-                                  <SelectItem key={group.id} value={group.id}>
-                                      {group.name} - {formatSchedule(group.schedule)}
-                                  </SelectItem>
-                              ))
-                          ) : (
-                              <SelectItem value="no-groups" disabled>
-                                  No hay grupos disponibles
-                              </SelectItem>
-                          )}
-                      </SelectContent>
-                  </Select>
-              )}
-          </div>
+          {/* Conditionally show group selection if not admin email */}
+          {email.toLowerCase() !== 'vallrakc67@gmail.com' && (
+            <div className="grid gap-2">
+                <Label htmlFor="group">Grupo</Label>
+                {loadingGroups ? (
+                    <Skeleton className="h-10 w-full" />
+                ) : (
+                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                        <SelectTrigger id="group" aria-label="Selecciona un grupo">
+                            <SelectValue placeholder="Selecciona tu grupo y jornada" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {groups && groups.length > 0 ? (
+                                groups.map(group => (
+                                    <SelectItem key={group.id} value={group.id}>
+                                        {group.name} - {formatSchedule(group.schedule)}
+                                    </SelectItem>
+                                ))
+                            ) : (
+                                <SelectItem value="no-groups" disabled>
+                                    No hay grupos disponibles
+                                </SelectItem>
+                            )}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
+          )}
 
 
           <Button type="submit" className="w-full" disabled={loading}>

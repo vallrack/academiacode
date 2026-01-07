@@ -14,7 +14,7 @@ export function initializeFirebase() {
   // Verifica que todas las claves de configuración necesarias estén presentes
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
      console.error(
-      'Firebase config is missing. Make sure you have a .env.local file with the correct Firebase config variables.'
+      'Firebase config is missing in src/firebase/config.ts'
     );
     // Retornamos un objeto con los servicios como null para evitar que la app crashee
     // Los hooks como useFirebase se encargarán de manejar este estado.

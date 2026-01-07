@@ -1,12 +1,10 @@
-// Lee las variables de entorno para la configuración de Firebase.
-// Esto asegura que tanto el entorno local como el de producción usen la misma configuración.
 
 // Es crucial que estas variables de entorno se configuren tanto en tu archivo .env.local como en Vercel.
 export const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBzKDBbPUVtGlHQdzmhmwOrvS2tBVbLlaY",
+  authDomain: "studio-8025858435-569bf.firebaseapp.com",
+  projectId: "studio-8025858435-569bf",
+  storageBucket: "studio-8025858435-569bf.appspot.com",
+  messagingSenderId: "89309975318",
+  appId: "1:89309975318:web:5c953fdd7e6e13bfceb637",
 };
