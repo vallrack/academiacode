@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -6,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUser } from '@/ai/create-user-flow';
 import { collection, type DocumentData, type Query } from 'firebase/firestore';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,7 +38,6 @@ export default function RegisterPage() {
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -89,23 +87,14 @@ export default function RegisterPage() {
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       });
 
-      // Sign in the user
-      if (auth) {
-        await auth.signInWithEmailAndPassword(email, password);
-        
-        // CRITICAL: Force token refresh to get custom claims
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          await currentUser.getIdToken(true); // Force refresh with true parameter
-        }
-      }
-
       toast({
-        title: '¡Cuenta Creada y Sesión Iniciada!',
-        description: `Te has registrado correctamente como ${finalRole}.`,
+        title: '¡Cuenta Creada Exitosamente!',
+        description: 'Ahora puedes iniciar sesión con tus credenciales.',
       });
       
-      router.push('/dashboard');
+      // Redirect to login page instead of trying to sign in immediately
+      // This avoids the custom claims propagation timing issue
+      router.push('/login');
 
     } catch (error: any) {
       console.error('Error durante el registro:', error);
