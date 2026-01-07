@@ -303,7 +303,7 @@ export default function SessionIDEPage() {
                     <Terminal className="w-4 h-4" />
                     Salida
                   </h2>
-                  <div className="flex-1 rounded-md bg-muted p-4">
+                  <div className="flex-1 rounded-md bg-muted p-4 overflow-auto">
                     <pre className="text-sm font-mono whitespace-pre-wrap">{output || 'La salida de tu código aparecerá aquí.'}</pre>
                   </div>
                 </div>
@@ -368,5 +368,3 @@ export default function SessionIDEPage() {
     </div>
   );
 }
-
-    
