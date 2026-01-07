@@ -87,12 +87,14 @@ export default function AssignmentsPageContent() {
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore || !canCreate) return null;
     
+    const groupsCollection = collection(firestore, 'groups');
+
     if(isSuperAdmin) {
-        return collection(firestore, 'groups');
+        return groupsCollection;
     }
     
     if(isTeacher && teacherManagedGroups.length > 0) {
-        return query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+        return query(groupsCollection, where('__name__', 'in', teacherManagedGroups));
     }
 
     return null;
@@ -101,13 +103,15 @@ export default function AssignmentsPageContent() {
   
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !canCreate) return null;
+
+    const usersCollection = collection(firestore, 'users');
     
     if(isSuperAdmin) {
-        return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+        return query(usersCollection, where('role', '==', 'STUDENT'));
     }
     
     if(isTeacher && teacherManagedGroups.length > 0) {
-        return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+        return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
     }
     return null;
   }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);

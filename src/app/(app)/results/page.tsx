@@ -60,13 +60,15 @@ export default function ResultsPage() {
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || (!isTeacher && !isSuperAdmin)) return null;
 
+    const usersCollection = collection(firestore, 'users');
+
     if (isSuperAdmin) {
-      return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+      return query(usersCollection, where('role', '==', 'STUDENT'));
     }
     
     // Teacher: Query students from managed groups
     if (isTeacher && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
-      return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
+      return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
     }
     
     return null;

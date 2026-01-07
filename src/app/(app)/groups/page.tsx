@@ -67,14 +67,16 @@ export default function GroupsPage() {
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile) return null;
     
+    const groupsCollection = collection(firestore, "groups");
+
     // Super admin sees all groups
     if (isSuperAdmin) {
-        return collection(firestore, "groups") as Query<Group & DocumentData>;
+        return groupsCollection as Query<Group & DocumentData>;
     }
 
     // Teacher sees only managed groups
     if (userProfile.role === 'TEACHER' && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
-        return query(collection(firestore, "groups"), where('__name__', 'in', userProfile.managedGroupIds));
+        return query(groupsCollection, where('__name__', 'in', userProfile.managedGroupIds));
     }
 
     // Students or teachers with no groups see nothing (or you can return a query that yields no results)

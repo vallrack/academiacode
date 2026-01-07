@@ -200,7 +200,8 @@ export default function EditChallengePage() {
     };
 
     try {
-        await addDoc(collection(firestore, 'assignments'), assignmentData);
+        const assignmentsCollection = collection(firestore, 'assignments');
+        await addDoc(assignmentsCollection, assignmentData);
         toast({
             title: "¡Desafío Asignado!",
             description: `Asignado a ${targetGroup ? `grupo` : `estudiante`} para el ${format(dueDate, 'PPP', { locale: es })}.`

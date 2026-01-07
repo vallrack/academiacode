@@ -25,7 +25,7 @@ function InnerAppLayout({ children }: { children: ReactNode }) {
     console.error("Error loading user profile:", error);
   }
 
-  const isLoading = loadingUser || loadingProfile;
+  const isLoading = loadingUser || (user && loadingProfile);
 
   return (
     <UserProfileProvider userProfile={userProfile} loadingProfile={isLoading}>

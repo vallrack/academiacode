@@ -81,17 +81,19 @@ export function StudentDashboard({ userProfile }: { userProfile: DocumentData })
     const assignmentsQuery = useMemoFirebase(() => {
         if (!firestore || !userProfile?.uid) return null;
         
-        const conditions: [string, WhereFilterOp, any][] = [
-            ['targetId', '==', userProfile.uid]
-        ];
-
+        const conditions = [];
         if (userProfile.groupId) {
-            conditions.push(['targetId', '==', userProfile.groupId]);
+            conditions.push(where('targetId', '==', userProfile.groupId), where('targetType', '==', 'group'));
         }
+        conditions.push(where('targetId', '==', userProfile.uid), where('targetType', '==', 'student'));
+
 
         return query(
             collection(firestore, "assignments"),
-            or(...conditions.map(([field, op, value]) => where(field, op, value)))
+            or(
+                where('targetId', '==', userProfile.uid),
+                where('targetId', '==', userProfile.groupId || '______') // use a non-existent id if no groupId
+            )
         ) as Query<Assignment & DocumentData>;
 
     }, [firestore, userProfile?.uid, userProfile?.groupId]);
