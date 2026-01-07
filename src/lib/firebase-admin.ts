@@ -4,7 +4,7 @@ import * as admin from 'firebase-admin';
 let isInitialized = false;
 
 /**
- * Inicializa Firebase Admin SDK de forma segura
+ * Inicializa Firebase Admin SDK de forma segura usando variables de entorno individuales.
  */
 function initializeFirebaseAdmin() {
   // Si ya está inicializado, no hacer nada
@@ -14,42 +14,28 @@ function initializeFirebaseAdmin() {
   }
 
   try {
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    
-    if (!serviceAccountString) {
-      throw new Error(
-        '❌ FIREBASE_SERVICE_ACCOUNT_KEY no está definida en las variables de entorno'
-      );
-    }
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
-    // Validar que es un JSON válido
-    let serviceAccount;
-    try {
-      serviceAccount = JSON.parse(serviceAccountString);
-    } catch (parseError) {
+    if (!projectId || !privateKey || !clientEmail) {
       throw new Error(
-        '❌ FIREBASE_SERVICE_ACCOUNT_KEY no es un JSON válido. Verifica que copiaste correctamente la clave.'
-      );
-    }
-
-    // Validar campos requeridos
-    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-      throw new Error(
-        '❌ La service account key está incompleta. Debe tener project_id, private_key y client_email'
+        '❌ Las variables de entorno para Firebase Admin (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL) no están definidas.'
       );
     }
 
     admin.initializeApp({
       credential: admin.credential.cert({
-        projectId: serviceAccount.project_id,
-        clientEmail: serviceAccount.client_email,
-        privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
+        projectId,
+        clientEmail,
+        // Reemplaza los saltos de línea literales para que la llave sea válida
+        privateKey: privateKey.replace(/\\n/g, '\n'),
       }),
     });
 
     isInitialized = true;
     console.log('✅ Firebase Admin SDK inicializado correctamente');
-    console.log('📁 Project ID:', serviceAccount.project_id);
+    console.log('📁 Project ID:', projectId);
     
   } catch (error: any) {
     console.error('❌ Error al inicializar Firebase Admin SDK:', error.message);
