@@ -7,3 +7,13 @@ export const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
+
+// Validación opcional para desarrollo
+if (typeof window !== 'undefined') {
+  if (!firebaseConfig.apiKey) {
+    console.error('❌ FIREBASE CONFIG ERROR: Las variables de entorno no están configuradas');
+    console.log('Variables actuales:', firebaseConfig);
+  } else {
+    console.log('✅ Firebase config cargada correctamente');
+  }
+}

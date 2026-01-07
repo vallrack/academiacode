@@ -12,24 +12,26 @@ let firestore: Firestore;
 
 /**
  * Inicializa la aplicación Firebase y los SDKs del cliente de forma idempotente.
- * Evita la reinicialización en el lado del cliente (HMR).
- * @returns Un objeto que contiene las instancias de los servicios de Firebase.
  */
 function initializeFirebaseClient() {
+  // Validar que la configuración existe
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.error('❌ Error: Configuración de Firebase incompleta');
+    console.log('Config actual:', firebaseConfig);
+    // En lugar de lanzar un error que detenga la app, asignamos instancias "dummy"
+    // para que la app no crashee en el servidor o durante el build.
+    // @ts-ignore
+    firebaseApp = { appName: 'dummy', options: {} };
+    // @ts-ignore
+    auth = { currentUser: null };
+    // @ts-ignore
+    firestore = { type: 'dummy-firestore' };
+    return { firebaseApp, auth, firestore };
+  }
+
+  // Inicializar solo si no existe
   if (getApps().length === 0) {
-    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("AIza")) {
-       console.log(
-        'La configuración de Firebase está ausente o es un marcador de posición en src/firebase/config.ts. Usando configuración dummy.'
-      );
-      // Retornar stubs para evitar que la app crashee en el servidor o durante el build.
-      // @ts-ignore
-      firebaseApp = { appName: 'dummy', options: {} };
-      // @ts-ignore
-      auth = { currentUser: null };
-      // @ts-ignore
-      firestore = { type: 'dummy-firestore' };
-      return { firebaseApp, auth, firestore };
-    }
+    console.log('🔥 Inicializando Firebase con projectId:', firebaseConfig.projectId);
     firebaseApp = initializeApp(firebaseConfig);
   } else {
     firebaseApp = getApp();
@@ -44,12 +46,11 @@ function initializeFirebaseClient() {
 // Inicializamos inmediatamente para que las instancias estén disponibles para exportación.
 initializeFirebaseClient();
 
-// Exportaciones directas de las instancias para usar en la app.
+
+// Exportaciones directas
 export { firebaseApp, auth, firestore };
 
-
 // --- Exports de Hooks y Providers ---
-// Estos componentes y hooks utilizan las instancias ya inicializadas.
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
