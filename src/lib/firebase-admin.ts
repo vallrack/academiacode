@@ -1,4 +1,4 @@
-'use server';
+// IMPORTANTE: ELIMINA EL 'use server' DE AQUÍ
 
 import * as admin from 'firebase-admin';
 
@@ -13,7 +13,11 @@ if (!admin.apps.length) {
     const serviceAccount = JSON.parse(serviceAccountString);
 
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert({
+        ...serviceAccount,
+        // Corrige los saltos de línea para que la llave privada funcione en producción
+        privateKey: serviceAccount.privateKey.replace(/\\n/g, '\n'),
+      }),
     });
     console.log("Firebase Admin SDK inicializado correctamente.");
   } catch (e: any) {
