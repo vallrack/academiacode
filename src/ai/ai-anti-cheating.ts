@@ -39,7 +39,7 @@ const AIAntiCheatingInputSchema = z.object({
   allowInteractiveApis: z.boolean().optional().describe('Whether to allow browser-specific APIs like prompt() and alert().'),
 });
 
-export type AIAntiCheatingInput = z.infer<typeof AIAntiCheatingInputSchema>;
+type AIAntiCheatingInput = z.infer<typeof AIAntiCheatingInputSchema>;
 
 const AIAntiCheatingOutputSchema = z.object({
   report: z.string().describe('Un reporte detallado en español de los posibles comportamientos de trampa detectados y una explicación de la corrección del código.'),
@@ -57,7 +57,7 @@ const AIAntiCheatingOutputSchema = z.object({
 });
 
 
-export type AIAntiCheatingOutput = z.infer<typeof AIAntiCheatingOutputSchema>;
+type AIAntiCheatingOutput = z.infer<typeof AIAntiCheatingOutputSchema>;
 
 export async function analyzeStudentActivity(
   input: AIAntiCheatingInput

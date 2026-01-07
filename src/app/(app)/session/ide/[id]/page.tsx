@@ -15,10 +15,33 @@ import { useToast } from '@/hooks/use-toast';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useParams } from 'next/navigation';
 import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
-import type { AIAntiCheatingInput, AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useUser } from '@/firebase/auth/use-user';
+
+
+// Define types inline as they are no longer exported from the 'use server' file
+type AIAntiCheatingInput = {
+    studentCode: string;
+    examDetails: string;
+    testCases: string;
+    allowInteractiveApis: boolean;
+    videoDataUri?: string;
+    screenDataUri?: string;
+};
+
+type AIAntiCheatingOutput = {
+    report: string;
+    riskAssessment: string;
+    testCaseResults: Array<{
+        input: any;
+        expectedOutput: any;
+        status: 'passed' | 'failed';
+        actualOutput?: any;
+    }>;
+    grade: number;
+    developedSkills: string[];
+};
 
 export default function SessionIDEPage() {
   const params = useParams();

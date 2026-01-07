@@ -19,7 +19,7 @@ const CreateUserInputSchema = z.object({
   role: z.enum(['STUDENT', 'TEACHER', 'SUPER_ADMIN']),
   groupId: z.string().optional().nullable(),
 });
-export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
+type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
 
 const CreateUserOutputSchema = z.object({
   uid: z.string(),

@@ -17,7 +17,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
 import { createUser } from '@/ai/create-user-flow';
-import type { CreateUserInput } from '@/ai/create-user-flow';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
@@ -31,6 +30,15 @@ type Group = {
   id: string; 
   name: string;
   schedule: GroupSchedule | string;
+};
+
+// Define the input type for the createUser function directly in the client component
+type CreateUserInput = {
+  email: string;
+  password: string;
+  displayName: string;
+  role: "STUDENT" | "TEACHER" | "SUPER_ADMIN";
+  groupId: string | null | undefined;
 };
 
 
