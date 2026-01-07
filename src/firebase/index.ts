@@ -1,43 +1,54 @@
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// IMPORTANTE: NO MODIFICAR ESTA FUNCIÓN
-export function initializeFirebase() {
-  if (getApps().length > 0) {
-    return getSdks(getApp());
+// --- Instancias de Firebase cacheadas ---
+let firebaseApp: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
+
+/**
+ * Inicializa la aplicación Firebase y los SDKs del cliente.
+ * Evita la reinicialización en el lado del cliente (HMR).
+ * 
+ * @returns Un objeto que contiene las instancias de los servicios de Firebase.
+ */
+function initializeFirebaseClient() {
+  if (getApps().length === 0) {
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("REEMPLAZA")) {
+      console.error(
+        'La configuración de Firebase está ausente o incompleta en src/firebase/config.ts. Reemplaza los valores de marcador de posición.'
+      );
+      // Retornar stubs para evitar que la app crashee en el servidor o durante el build.
+      return { firebaseApp: null, auth: null, firestore: null };
+    }
+    firebaseApp = initializeApp(firebaseConfig);
+  } else {
+    firebaseApp = getApp();
   }
   
-  // Verifica que todas las claves de configuración necesarias estén presentes
-  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("REEMPLAZA")) {
-     console.error(
-      'Firebase config is missing or incomplete in src/firebase/config.ts. Please replace placeholder values.'
-    );
-    // Retornamos un objeto con los servicios como null para evitar que la app crashee
-    // Los hooks como useFirebase se encargarán de manejar este estado.
-    return { firebaseApp: null, auth: null, firestore: null };
-  }
+  auth = getAuth(firebaseApp);
+  firestore = getFirestore(firebaseApp);
 
-  const firebaseApp = initializeApp(firebaseConfig);
-  return getSdks(firebaseApp);
+  return { firebaseApp, auth, firestore };
 }
 
-export function getSdks(firebaseApp: FirebaseApp) {
-  return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
-  };
-}
+// Inicializamos inmediatamente para que las instancias estén disponibles para exportación.
+initializeFirebaseClient();
 
+// Exportaciones directas de las instancias para usar en la app.
+export { firebaseApp, auth, firestore };
+
+
+// --- Exports de Hooks y Providers ---
+// Estos componentes y hooks utilizan las instancias ya inicializadas.
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
-export * from './non-blocking-updates';
-export * from './non-blocking-login';
+export * from './auth/use-user';
 export * from './errors';
 export * from './error-emitter';
