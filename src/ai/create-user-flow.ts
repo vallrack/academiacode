@@ -8,8 +8,34 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize Firebase Admin SDK only if it hasn't been initialized yet
+if (!admin.apps.length) {
+  try {
+    // Use service account credentials if available (for production environments)
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
+      : null;
+
+    if (serviceAccount) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+      // Fallback for local development or environments with default credentials
+      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Falling back to applicationDefault(). For local development, ensure you are authenticated via 'gcloud auth application-default login'.");
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+      });
+    }
+  } catch (e: any) {
+    console.error("Firebase Admin SDK initialization failed:", e);
+  }
+}
+
 
 // Internal schemas and types - NOT exported
 const CreateUserInputSchema = z.object({
