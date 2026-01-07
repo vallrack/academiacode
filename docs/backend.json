@@ -31,6 +31,13 @@
         "groupId": {
             "type": "string",
             "description": "Reference to the Group the student belongs to. (Relationship: Group 1:N User)"
+        },
+        "managedGroupIds": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "For teachers, an array of group IDs they are allowed to manage. (Relationship: User N:M Group)"
         }
       },
       "required": [
@@ -405,7 +412,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. Each document is identified by a unique user ID. This collection now includes a 'groupId' field to link students to their respective group.",
+          "description": "Stores user profiles. Each document is identified by a unique user ID. This collection now includes a 'groupId' field for students and a 'managedGroupIds' array for teachers.",
           "params": [
             {
               "name": "userId",

@@ -26,9 +26,9 @@ export function TeacherDashboard({ userProfile }: { userProfile: DocumentData })
   const { data: challenges, loading: loadingChallenges } = useCollection(challengesQuery);
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore]);
+    if (!firestore || !userProfile.managedGroupIds || userProfile.managedGroupIds.length === 0) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
+  }, [firestore, userProfile.managedGroupIds]);
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   const recentAssignmentsQuery = useMemoFirebase(() => {
@@ -65,12 +65,12 @@ export function TeacherDashboard({ userProfile }: { userProfile: DocumentData })
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Estudiantes Inscritos</CardTitle>
+                <CardTitle className="text-sm font-medium">Mis Estudiantes</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{students?.length ?? 0}</div>}
-                <p className="text-xs text-muted-foreground">Total de estudiantes en la plataforma</p>
+                <p className="text-xs text-muted-foreground">Estudiantes en los grupos que gestionas</p>
               </CardContent>
             </Card>
           </div>

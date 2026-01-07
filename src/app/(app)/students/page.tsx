@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Trash2, UserCog, PlusCircle, Pencil } from "lucide-react";
+import { MoreHorizontal, Trash2, UserCog, PlusCircle, Pencil, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,8 +34,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserProfile } from "@/contexts/user-profile-context";
 
@@ -60,20 +58,37 @@ export default function StudentsPage() {
   const { userProfile } = useUserProfile();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile) return null;
 
-    const isTeacherOrAdmin = userProfile.role === 'TEACHER' || userProfile.role === 'SUPER_ADMIN';
-    if (!isTeacherOrAdmin) return null;
+    const usersRef = collection(firestore, "users");
 
-    return query(collection(firestore, "users"), where("role", "==", "STUDENT")) as Query<User & DocumentData>;
-  }, [firestore, userProfile]);
+    // Super Admins can see all students
+    if (isSuperAdmin) {
+        return query(usersRef, where("role", "==", "STUDENT"));
+    }
+
+    // Teachers can only see students from the groups they manage
+    if (userProfile.role === 'TEACHER') {
+        const managedGroups = userProfile.managedGroupIds;
+        if (managedGroups && managedGroups.length > 0) {
+            return query(usersRef, where("role", "==", "STUDENT"), where("groupId", "in", managedGroups));
+        }
+        // If teacher manages no groups, they see no students.
+        return null; 
+    }
+    
+    // Other roles can't see this page
+    return null;
+
+  }, [firestore, userProfile, isSuperAdmin]);
 
   const { data: students, loading } = useCollection(studentsQuery);
 
@@ -91,9 +106,13 @@ export default function StudentsPage() {
       </Card>
     );
   }
+  
+  // This check is for teachers who haven't been assigned any groups yet
+  const teacherHasNoGroups = userProfile?.role === 'TEACHER' && (!userProfile.managedGroupIds || userProfile.managedGroupIds.length === 0);
+
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    if (!firestore) return;
+    if (!firestore || !isSuperAdmin) return;
     const userRef = doc(firestore, 'users', userId);
     try {
       await updateDoc(userRef, { role: newRole });
@@ -117,7 +136,7 @@ export default function StudentsPage() {
   };
 
   const handleDelete = async () => {
-    if (!userToDelete || !firestore) return;
+    if (!userToDelete || !firestore || !isSuperAdmin) return;
     setIsDeleting(true);
     const userRef = doc(firestore, 'users', userToDelete.id);
 
@@ -146,18 +165,23 @@ export default function StudentsPage() {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Estudiantes</h1>
+            {isSuperAdmin && (
              <Button className="w-full sm:w-auto" asChild>
                 <Link href="/users/new">
                     <PlusCircle className="mr-2 h-4 w-4"/>
                     Añadir Estudiante
                 </Link>
             </Button>
+            )}
         </div>
         <Card>
           <CardHeader>
             <CardTitle>Lista de Estudiantes</CardTitle>
             <CardDescription>
-              Administra a todos los estudiantes inscritos en la plataforma.
+              {isSuperAdmin 
+                ? "Administra a todos los estudiantes inscritos en la plataforma."
+                : "Aquí puedes ver los estudiantes de los grupos que gestionas."
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -175,7 +199,7 @@ export default function StudentsPage() {
                       <TableHead>Nombre</TableHead>
                       <TableHead className="hidden sm:table-cell">Email</TableHead>
                       <TableHead className="hidden md:table-cell">Grupo</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      {isSuperAdmin && <TableHead className="text-right">Acciones</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -186,45 +210,49 @@ export default function StudentsPage() {
                         <TableCell className="hidden md:table-cell">
                            {student.groupId || 'Sin grupo'}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menú</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                               <DropdownMenuItem onSelect={() => router.push(`/users/edit/${student.id}`)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                <span>Modificar</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuSub>
-                                <DropdownMenuSubTrigger>
-                                  <UserCog className="mr-2 h-4 w-4" />
-                                  <span>Cambiar Rol</span>
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuSubContent>
-                                  <DropdownMenuRadioGroup
-                                    value={student.role}
-                                    onValueChange={(role) => handleRoleChange(student.id, role as UserRole)}
-                                  >
-                                    <DropdownMenuRadioItem value="STUDENT">Estudiante</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="TEACHER">Profesor</DropdownMenuRadioItem>
-                                    <DropdownMenuRadioItem value="SUPER_ADMIN">Super Admin</DropdownMenuRadioItem>
-                                  </DropdownMenuRadioGroup>
-                                </DropdownMenuSubContent>
-                              </DropdownMenuSub>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onSelect={() => confirmDelete(student)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Eliminar</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                        {isSuperAdmin && (
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menú</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                 <DropdownMenuItem onSelect={() => { /* Navigation handled by Link inside */ }}>
+                                    <Link href={`/users/edit/${student.id}`} className="flex items-center w-full">
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        <span>Modificar</span>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuSub>
+                                  <DropdownMenuSubTrigger>
+                                    <UserCog className="mr-2 h-4 w-4" />
+                                    <span>Cambiar Rol</span>
+                                  </DropdownMenuSubTrigger>
+                                  <DropdownMenuSubContent>
+                                    <DropdownMenuRadioGroup
+                                      value={student.role}
+                                      onValueChange={(role) => handleRoleChange(student.id, role as UserRole)}
+                                    >
+                                      <DropdownMenuRadioItem value="STUDENT">Estudiante</DropdownMenuRadioItem>
+                                      <DropdownMenuRadioItem value="TEACHER">Profesor</DropdownMenuRadioItem>
+                                      <DropdownMenuRadioItem value="SUPER_ADMIN">Super Admin</DropdownMenuRadioItem>
+                                    </DropdownMenuRadioGroup>
+                                  </DropdownMenuSubContent>
+                                </DropdownMenuSub>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onSelect={() => confirmDelete(student)}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  <span>Eliminar</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -232,36 +260,46 @@ export default function StudentsPage() {
               </div>
             ) : (
               <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm py-16">
-                <div className="flex flex-col items-center gap-1 text-center">
-                  <h3 className="text-2xl font-bold tracking-tight">No hay estudiantes registrados</h3>
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="text-2xl font-bold tracking-tight">
+                    {teacherHasNoGroups ? "No tienes grupos asignados" : "No hay estudiantes para mostrar"}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Crea nuevos usuarios con el rol de estudiante para verlos aquí.
+                    {isSuperAdmin
+                        ? "Crea nuevos usuarios con el rol de estudiante para verlos aquí."
+                        : "Contacta a un administrador para que te asigne grupos y puedas ver a los estudiantes."
+                    }
                   </p>
-                   <Button className="mt-4" asChild>
+                   {isSuperAdmin && (
+                    <Button className="mt-4" asChild>
                         <Link href="/users/new">Añadir Estudiante</Link>
                     </Button>
+                   )}
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente el documento del estudiante "{userToDelete?.displayName}" de Firestore. No eliminará la cuenta de autenticación del usuario.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Eliminando..." : "Sí, eliminar estudiante"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {isSuperAdmin && (
+        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                Esta acción no se puede deshacer. Esto eliminará permanentemente el documento del estudiante "{userToDelete?.displayName}" de Firestore. No eliminará la cuenta de autenticación del usuario.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                {isDeleting ? "Eliminando..." : "Sí, eliminar estudiante"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   );
 }
