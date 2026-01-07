@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUser } from '@/ai/create-user-flow';
 import { doc, setDoc, collection, type DocumentData, type Query } from 'firebase/firestore';
 import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/app/logo';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,8 +29,7 @@ type Group = {
   schedule: GroupSchedule | string;
 };
 
-type UserRole = 'STUDENT' | 'TEACHER';
-
+type UserRole = 'STUDENT' | 'TEACHER' | 'SUPER_ADMIN';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -68,19 +65,11 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !firestore) {
-        toast({
-            variant: "destructive",
-            title: "Error de configuración",
-            description: "Los servicios de Firebase no están disponibles. Contacta al administrador.",
-        });
-        return;
-    }
     setLoading(true);
 
     try {
       const isAdminRegistration = email.toLowerCase() === 'vallrakc67@gmail.com';
-      const finalRole = isAdminRegistration ? 'SUPER_ADMIN' : role; 
+      const finalRole: UserRole = isAdminRegistration ? 'SUPER_ADMIN' : role; 
       
       if (finalRole === 'STUDENT' && !selectedGroup) {
         toast({
@@ -92,49 +81,32 @@ export default function RegisterPage() {
         return;
       }
 
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      const userProfileData: any = {
-        uid: user.uid,
-        email: user.email,
-        displayName: displayName || user.email?.split('@')[0] || '',
-        photoURL: user.photoURL || '',
+      await createUser({
+        email,
+        password,
+        displayName,
         role: finalRole,
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
-      };
+      });
 
-      const userDocRef = doc(firestore, 'users', user.uid);
-      
-      await setDoc(userDocRef, userProfileData);
+      // After the server action creates the user and profile, sign them in.
+      if (auth) {
+          await auth.signInWithEmailAndPassword(email, password);
+      }
 
       toast({
-        title: '¡Cuenta Creada!',
-        description: `Te has registrado correctamente como ${finalRole === 'SUPER_ADMIN' ? 'Super Admin' : finalRole === 'TEACHER' ? 'Profesor' : 'Estudiante'}.`,
+        title: '¡Cuenta Creada y Sesión Iniciada!',
+        description: `Te has registrado correctamente como ${finalRole}.`,
       });
       router.push('/dashboard');
 
     } catch (error: any) {
-      console.error('Error creando cuenta:', error);
-       if (error.code && error.code.startsWith('auth/')) {
-         toast({
-          variant: 'destructive',
-          title: 'Error de Autenticación',
-          description: "La contraseña debe tener al menos 6 caracteres o el correo ya está en uso.",
-        });
-      } else {
-        const permissionError = new FirestorePermissionError({
-            path: `users/${auth.currentUser?.uid || 'new-user'}`,
-            operation: 'create',
-            requestResourceData: { email, displayName },
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({
-            variant: "destructive",
-            title: "Error al Guardar Perfil",
-            description: "No se pudo crear el perfil de usuario. Revisa las reglas de seguridad.",
-        });
-      }
+      console.error('Error durante el registro:', error);
+      toast({
+          variant: "destructive",
+          title: "Error en el Registro",
+          description: error.message || "No se pudo completar el registro. Verifica los datos.",
+      });
     } finally {
       setLoading(false);
     }

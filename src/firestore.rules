@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --------------------------------------------------------------------------
-    // Funciones Auxiliares
+    // Funciones Auxiliares Basadas en Custom Claims
     // --------------------------------------------------------------------------
 
     function isSignedIn() {
@@ -15,27 +15,31 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    function getUserData(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data;
+    // Lee el rol directamente del token de autenticación (Custom Claim)
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    function isTeacher() {
+      return isSignedIn() && getRole() == 'TEACHER';
     }
 
     function isTeacherOrAdmin() {
-      let role = getUserData(request.auth.uid).role;
-      return isSignedIn() && (role == 'SUPER_ADMIN' || role == 'TEACHER');
+      return isSignedIn() && (getRole() == 'SUPER_ADMIN' || getRole() == 'TEACHER');
     }
     
     function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'SUPER_ADMIN';
+      return isSignedIn() && getRole() == 'SUPER_ADMIN';
     }
 
-    function isSameGroup(targetUserId) {
-      let currentUser = getUserData(request.auth.uid);
-      let targetUser = getUserData(targetUserId);
-      return isSignedIn() && (
-        currentUser.role == 'SUPER_ADMIN' || 
-        currentUser.role == 'TEACHER' || 
-        (currentUser.groupId == targetUser.groupId && currentUser.groupId != null)
-      );
+    // Esta función sigue necesitando leer Firestore porque `managedGroupIds` está en el documento.
+    function isStudentInManagedGroup(studentId) {
+        let teacherData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+        let studentData = get(/databases/$(database)/documents/users/$(studentId)).data;
+        // Ensure teacherData and studentData and their properties are not null before access
+        return teacherData != null && teacherData.managedGroupIds != null && 
+               studentData != null && studentData.groupId != null &&
+               studentData.groupId in teacherData.managedGroupIds;
     }
 
     // --------------------------------------------------------------------------
@@ -43,29 +47,30 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
-      // Lectura individual de un usuario
-      allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
+      // Un usuario puede leer su propio perfil.
+      // Un admin puede leer cualquier perfil.
+      // Un profesor puede leer los perfiles de los estudiantes en sus grupos gestionados.
+      allow get: if isOwner(userId) || isAdmin() || (isTeacher() && isStudentInManagedGroup(userId));
       
-      // Listado de usuarios: Profesores y Admins pueden listar todo.
-      // Estudiantes pueden listar compañeros de su mismo grupo.
-      allow list: if isTeacherOrAdmin() || (
-        isSignedIn() &&
-        request.query.where != null &&
-        request.query.where.size() > 0 &&
-        request.query.where[0][0] == 'groupId' &&
-        request.query.where[0][2] == getUserData(request.auth.uid).groupId
-      );
+      // Listado de usuarios:
+      // Admins y Profesores pueden listar usuarios. El filtrado específico se hace en el cliente.
+      allow list: if isTeacherOrAdmin();
       
-      // Creación de usuarios
-      allow create: if request.auth == null || isAdmin();
+      // Creación de usuarios:
+      // - Cualquiera puede crear su propio doc si está autenticado (registro).
+      // - Un admin puede crear cualquier doc.
+      // - Un usuario no autenticado (para el formulario de registro antes de que el perfil se cree)
+      allow create: if isOwner(userId) || isAdmin() || request.auth == null;
       
-      // Actualización de usuarios
+      // Actualización de usuarios:
+      // El dueño puede actualizar su propio perfil (pero no su rol, a menos que sea el mismo).
+      // Un Admin puede actualizar cualquier perfil, incluyendo roles.
       allow update: if (isOwner(userId) && (
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
-        resource.data.role == request.resource.data.role
+         resource.data.role == request.resource.data.role
       )) || isAdmin();
       
-      // Eliminación de usuarios
+      // Eliminación de usuarios: Solo Admins.
       allow delete: if isAdmin();
       
       match /payments/{id} { 
@@ -92,7 +97,7 @@ service cloud.firestore {
       // Profesores y admins pueden leer todas las sumisiones.
       allow get: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isTeacherOrAdmin();
 
-      // CORREGIDO: Profesores y Admins pueden listar todas las sumisiones sin restricciones.
+      // Profesores y Admins pueden listar todas las sumisiones sin restricciones.
       // Los estudiantes solo pueden listar sus propias sumisiones con un where clause.
       allow list: if isTeacherOrAdmin() || (
         isSignedIn() && 
@@ -113,13 +118,15 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      allow read, list: if true; // ✅ Acceso público para lectura (necesario para registro)
-      allow write: if isTeacherOrAdmin();
+      // Lectura pública necesaria para el formulario de registro.
+      allow get, list: if true;
+      // Solo los Super Admins pueden crear, modificar o eliminar grupos.
+      allow write: if isAdmin();
     }
 
     match /assignments/{assignmentId} {
         // Permite leer y listar si el usuario está autenticado
-        // El filtrado específico por rol se hace en el cliente
+        // El filtrado específico por rol/grupo se hace en el cliente
         allow read, list: if isSignedIn();
         allow create, update, delete: if isTeacherOrAdmin();
     }

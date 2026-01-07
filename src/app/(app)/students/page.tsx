@@ -78,6 +78,7 @@ export default function StudentsPage() {
     // Teachers can only see students from the groups they manage
     if (userProfile.role === 'TEACHER') {
         const managedGroups = userProfile.managedGroupIds;
+        // Only query if the teacher manages at least one group
         if (managedGroups && managedGroups.length > 0) {
             return query(usersRef, where("role", "==", "STUDENT"), where("groupId", "in", managedGroups));
         }
@@ -85,7 +86,7 @@ export default function StudentsPage() {
         return null; 
     }
     
-    // Other roles can't see this page
+    // Other roles can't see this page's content
     return null;
 
   }, [firestore, userProfile, isSuperAdmin]);
@@ -94,6 +95,7 @@ export default function StudentsPage() {
 
   const hasStudents = !loading && students && students.length > 0;
   
+  // This check is for roles that should not see this page at all
   if (userProfile?.role !== 'TEACHER' && userProfile?.role !== 'SUPER_ADMIN') {
     return (
       <Card>

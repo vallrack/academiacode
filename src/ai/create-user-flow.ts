@@ -26,9 +26,6 @@ const CreateUserOutputSchema = z.object({
   displayName: z.string(),
 });
 
-type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
-type CreateUserOutput = z.infer<typeof CreateUserOutputSchema>;
-
 // Define the flow
 const createUserFlow = ai.defineFlow(
   {
