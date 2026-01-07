@@ -1,12 +1,13 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers, UserCog, ClipboardList } from 'lucide-react';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
+import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { type DocumentData } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Logo } from './logo';
@@ -37,7 +38,41 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   
+  useEffect(() => {
+    if (!firestore || !userProfile?.uid) return;
+
+    const userStatusRef = doc(firestore, 'users', userProfile.uid);
+
+    // Set user to 'online' when component mounts
+    updateDoc(userStatusRef, {
+      status: 'online',
+      lastSeen: serverTimestamp(),
+    });
+
+    const handleBeforeUnload = () => {
+        // Use sendBeacon for reliability on page close
+        const data = JSON.stringify({
+            status: 'offline',
+            lastSeen: new Date().toISOString(), // Use ISO string as Timestamp can't be serialized directly
+        });
+        navigator.sendBeacon(`/api/updateStatus?userId=${userProfile.uid}`, data);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Set user to 'offline' on component unmount (e.g., logout)
+      updateDoc(userStatusRef, {
+        status: 'offline',
+        lastSeen: serverTimestamp(),
+      });
+    };
+  }, [firestore, userProfile?.uid]);
+
+
   const handleLogout = async () => {
     if (auth) {
         await signOut(auth);
