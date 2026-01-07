@@ -90,6 +90,18 @@ export default function ResultsPage() {
     if (grade >= 3) return 'text-yellow-600';
     return 'text-red-600';
   };
+  
+  const formatDateSafe = (timestamp: any) => {
+    if (!timestamp) return 'Fecha desconocida';
+    try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return format(date, "d MMM yyyy, HH:mm", { locale: es });
+    } catch (e) {
+        console.error("Could not format date:", timestamp);
+        return "Fecha inválida";
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -179,7 +191,7 @@ export default function ResultsPage() {
                         </div>
                         <div className="flex items-center gap-4 mt-2 sm:mt-0">
                            <span className="text-xs text-muted-foreground">
-                             {format(sub.submissionDate.toDate(), "d MMM yyyy, HH:mm", { locale: es })}
+                             {formatDateSafe(sub.submissionDate)}
                            </span>
                            <div className={`flex items-center gap-1.5 font-bold text-lg ${getGradeColor(sub.grade)}`}>
                              <Star className="w-5 h-5" />
