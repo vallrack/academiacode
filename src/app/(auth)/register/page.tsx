@@ -176,7 +176,7 @@ export default function RegisterPage() {
             />
           </div>
           
-          <div className={cn("grid gap-2", isSuperAdminEmail ? "hidden" : "grid")}>
+           <div className={cn("grid gap-2", isSuperAdminEmail && "hidden")}>
              <Label htmlFor="role">Soy un</Label>
               <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
                   <SelectTrigger id="role">
@@ -189,7 +189,7 @@ export default function RegisterPage() {
               </Select>
           </div>
           
-          <div className={cn("grid gap-2", role === 'STUDENT' && !isSuperAdminEmail ? "grid" : "hidden")}>
+          <div className={cn("grid-cols-1 gap-2", role === 'STUDENT' && !isSuperAdminEmail ? "grid" : "hidden")}>
               <Label htmlFor="group">Grupo</Label>
               {loadingGroups ? (
                   <Skeleton className="h-10 w-full" />
