@@ -53,13 +53,11 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin() || (isTeacher() && isStudentInManagedGroup(userId));
       
       // Listado de usuarios:
-      // Admins pueden listar a todos.
-      // Profesores pueden listar estudiantes de los grupos que gestionan.
-      allow list: if isAdmin() || 
-                     (isTeacher() && request.query.where.size() > 0 && request.query.where[2] in getUserData(request.auth.uid).managedGroupIds);
+      // Admins y Profesores pueden listar usuarios. El filtrado específico se hace en el cliente.
+      allow list: if isTeacherOrAdmin();
       
       // Creación de usuarios: Un usuario no autenticado (registro), el propio dueño del perfil, o un Admin.
-      allow create: if request.auth == null || isAdmin() || isOwner(userId);
+      allow create: if isOwner(userId) || isAdmin() || request.auth == null;
       
       // Actualización de usuarios:
       // El dueño puede actualizar su propio perfil (pero no su rol).
