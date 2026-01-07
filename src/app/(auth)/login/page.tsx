@@ -35,9 +35,10 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
 
+      // Force a token refresh to get the latest custom claims after login
       const currentUser = auth.currentUser;
       if (currentUser) {
-          await currentUser.getIdToken(true); // Force refresh to get custom claims
+          await currentUser.getIdToken(true); 
       }
       
       toast({

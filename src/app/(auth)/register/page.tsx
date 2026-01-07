@@ -65,6 +65,16 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!auth) {
+       toast({
+            variant: 'destructive',
+            title: 'Error de Configuración',
+            description: 'El servicio de autenticación no está disponible.',
+        });
+        return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,7 +91,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // 1. Create user and set custom claims via server action
+      // 1. Create user document and auth custom claims via server action
       await createUser({
         email,
         password,
@@ -90,17 +100,15 @@ export default function RegisterPage() {
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       });
 
-      // 2. Sign in the user to get a session
-      if (auth) {
-        await signInWithEmailAndPassword(auth, email, password);
+      // 2. Sign in the new user to get a session
+      await signInWithEmailAndPassword(auth, email, password);
         
-        // 3. CRITICAL: Force a token refresh to get the new custom claims
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          await currentUser.getIdToken(true);
-        }
+      // 3. CRITICAL: Force a token refresh to get the new custom claims
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await currentUser.getIdToken(true);
       }
-
+      
       toast({
         title: '¡Cuenta Creada y Sesión Iniciada!',
         description: `Te has registrado correctamente como ${finalRole}. Redirigiendo...`,
