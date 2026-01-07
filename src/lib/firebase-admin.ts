@@ -14,15 +14,15 @@ if (!admin.apps.length) {
 
     admin.initializeApp({
       credential: admin.credential.cert({
-        ...serviceAccount,
-        // Corrige los saltos de línea para que la llave privada funcione en producción
-        privateKey: serviceAccount.privateKey.replace(/\\n/g, '\n'),
+        projectId: serviceAccount.project_id, // Usa project_id (con guion bajo)
+        clientEmail: serviceAccount.client_email, // Usa client_email
+        // Reemplaza los saltos de línea literales para que la llave sea válida
+        privateKey: serviceAccount.private_key.replace(/\\n/g, '\n'),
       }),
     });
-    console.log("Firebase Admin SDK inicializado correctamente.");
+    console.log("Firebase Admin inicializado correctamente con el proyecto academiacode-f42d8.");
   } catch (e: any) {
-    console.error("Error al inicializar Firebase Admin SDK:", e.message);
-    // En un entorno de producción, podrías querer manejar esto de forma más robusta.
+    console.error("Error al inicializar Firebase Admin:", e.message);
   }
 }
 
