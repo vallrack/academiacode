@@ -12,9 +12,9 @@ export function initializeFirebase() {
   }
   
   // Verifica que todas las claves de configuración necesarias estén presentes
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith("REEMPLAZA")) {
      console.error(
-      'Firebase config is missing in src/firebase/config.ts'
+      'Firebase config is missing or incomplete in src/firebase/config.ts. Please replace placeholder values.'
     );
     // Retornamos un objeto con los servicios como null para evitar que la app crashee
     // Los hooks como useFirebase se encargarán de manejar este estado.
