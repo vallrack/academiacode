@@ -87,6 +87,32 @@ service cloud.firestore {
     }
 
     // --------------------------------------------------------------------------
+    // Reglas de Sumisiones (Colección Raíz)
+    // --------------------------------------------------------------------------
+
+    match /submissions/{submissionId} {
+      // Un estudiante puede crear su propia sumisión.
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      
+      // Un estudiante puede leer sus propias sumisiones.
+      // Profesores y admins pueden leer todas las sumisiones.
+      allow get: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isTeacherOrAdmin();
+
+      // Profesores y Admins pueden listar todas las sumisiones.
+      // Los estudiantes pueden listar sus propias sumisiones filtrando por su ID.
+      allow list: if isTeacherOrAdmin() || (
+        isSignedIn() && 
+        request.query.where != null &&
+        request.query.where[0][0] == 'studentId' && 
+        request.query.where[0][2] == request.auth.uid
+      );
+        
+      // Nadie puede actualizar o eliminar sumisiones por ahora para mantener la integridad.
+      allow update, delete: if false;
+    }
+
+
+    // --------------------------------------------------------------------------
     // Grupos e Assignments
     // --------------------------------------------------------------------------
     
