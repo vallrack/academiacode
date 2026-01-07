@@ -35,6 +35,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { es } from 'date-fns/locale';
+import { useUserProfile } from '@/contexts/user-profile-context';
 
 type GroupSchedule = {
   days: string[];
@@ -72,17 +73,46 @@ export default function EditChallengePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { user } = useUser();
+  const { userProfile } = useUserProfile();
+
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
+  const isTeacher = userProfile?.role === 'TEACHER';
+  const teacherManagedGroups = userProfile?.managedGroupIds || [];
+
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'groups') as Query<Group & DocumentData>;
-  }, [firestore]);
+    if (!firestore || !userProfile) return null;
+    
+    const groupsCollection = collection(firestore, 'groups');
+
+    if (isSuperAdmin) {
+        return groupsCollection as Query<Group & DocumentData>;
+    }
+
+    if (isTeacher && teacherManagedGroups.length > 0) {
+        return query(groupsCollection, where('__name__', 'in', teacherManagedGroups));
+    }
+
+    return null; // Teacher with no groups sees no groups
+  }, [firestore, userProfile, isSuperAdmin, isTeacher, teacherManagedGroups]);
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
+
   const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
-  }, [firestore]);
+    if (!firestore || !userProfile) return null;
+    
+    const usersCollection = collection(firestore, 'users');
+
+    if (isSuperAdmin) {
+        return query(usersCollection, where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
+    }
+    
+    if (isTeacher && teacherManagedGroups.length > 0) {
+        return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups)) as Query<Student & DocumentData>;
+    }
+
+    return null; // Teacher with no groups sees no students
+  }, [firestore, userProfile, isSuperAdmin, isTeacher, teacherManagedGroups]);
   const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   useEffect(() => {
@@ -353,5 +383,3 @@ export default function EditChallengePage() {
     </div>
   );
 }
-
-    
