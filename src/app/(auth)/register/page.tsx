@@ -31,11 +31,14 @@ type Group = {
   schedule: GroupSchedule | string;
 };
 
+type UserRole = 'STUDENT' | 'TEACHER';
+
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [role, setRole] = useState<UserRole>('STUDENT');
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -45,9 +48,9 @@ export default function RegisterPage() {
   const { toast } = useToast();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null; // Solo verifica firestore
+    if (!firestore) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore]); // Elimina 'user' de las dependencias
+  }, [firestore]);
 
   const { data: groups, isLoading: loadingGroups } = useCollection(groupsQuery);
 
@@ -76,11 +79,10 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Determine role based on email for initial admin setup
       const isAdminRegistration = email.toLowerCase() === 'vallrakc67@gmail.com';
-      const role = isAdminRegistration ? 'SUPER_ADMIN' : 'STUDENT'; 
+      const finalRole = isAdminRegistration ? 'SUPER_ADMIN' : role; 
       
-      if (role === 'STUDENT' && !selectedGroup) {
+      if (finalRole === 'STUDENT' && !selectedGroup) {
         toast({
             variant: 'destructive',
             title: 'Campo Requerido',
@@ -98,9 +100,8 @@ export default function RegisterPage() {
         email: user.email,
         displayName: displayName || user.email?.split('@')[0] || '',
         photoURL: user.photoURL || '',
-        role: role,
-        // Only assign groupId if student
-        groupId: role === 'STUDENT' ? selectedGroup : null,
+        role: finalRole,
+        groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       };
 
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -109,7 +110,7 @@ export default function RegisterPage() {
 
       toast({
         title: '¡Cuenta Creada!',
-        description: `Te has registrado correctamente como ${role === 'SUPER_ADMIN' ? 'Super Admin' : 'Estudiante'}.`,
+        description: `Te has registrado correctamente como ${finalRole === 'SUPER_ADMIN' ? 'Super Admin' : finalRole === 'TEACHER' ? 'Profesor' : 'Estudiante'}.`,
       });
       router.push('/dashboard');
 
@@ -138,6 +139,8 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  const isSuperAdminEmail = email.toLowerCase() === 'vallrakc67@gmail.com';
 
   return (
     <Card className="w-full max-w-sm">
@@ -184,8 +187,22 @@ export default function RegisterPage() {
             />
           </div>
           
-          {/* Conditionally show group selection if not admin email */}
-          {email.toLowerCase() !== 'vallrakc67@gmail.com' && (
+          {!isSuperAdminEmail && (
+             <div className="grid gap-2">
+                <Label htmlFor="role">Soy un</Label>
+                <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
+                    <SelectTrigger id="role">
+                        <SelectValue placeholder="Selecciona tu rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="STUDENT">Estudiante</SelectItem>
+                        <SelectItem value="TEACHER">Profesor</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+          )}
+          
+          {role === 'STUDENT' && !isSuperAdminEmail && (
             <div className="grid gap-2">
                 <Label htmlFor="group">Grupo</Label>
                 {loadingGroups ? (
