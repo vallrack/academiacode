@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -57,14 +58,48 @@ export default function SessionIDEPage() {
     
     try {
       const challengeTitle = challenge.title || 'Desafío';
-      // Placeholder para código por defecto según el lenguaje
-      if (challenge.language === 'javascript') {
-        setCode(`// ${challengeTitle}\n\nfunction solve() {\n  // Escribe tu código aquí\n  return;\n}\n`);
-      } else if (challenge.language === 'python') {
-        setCode(`# ${challengeTitle}\n\ndef solve():\n    # Escribe tu código aquí\n    pass\n`);
-      } else {
-        setCode(`// ${challengeTitle}\n\n// Escribe tu código aquí\n`);
+      const language = challenge.language || 'javascript';
+      let template = `// Desafío: ${challengeTitle}\n// Lenguaje: ${language}\n\n// Escribe tu código aquí\n`;
+
+      switch (language) {
+        case 'javascript':
+        case 'typescript':
+          template = `/**\n * ${challengeTitle}\n */\nfunction solve() {\n  // Escribe tu código aquí\n  \n}\n`;
+          break;
+        case 'python':
+          template = `# ${challengeTitle}\n\ndef solve():\n    # Escribe tu código aquí\n    pass\n`;
+          break;
+        case 'java':
+          template = `// ${challengeTitle}\n\nclass Solution {\n    public static void main(String[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
+          break;
+        case 'csharp':
+            template = `// ${challengeTitle}\n\nusing System;\n\npublic class Program {\n    public static void Main(string[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
+            break;
+        case 'cpp':
+            template = `// ${challengeTitle}\n\n#include <iostream>\n\nint main() {\n    // Escribe tu código aquí\n    return 0;\n}\n`;
+            break;
+        case 'go':
+            template = `// ${challengeTitle}\n\npackage main\n\nimport "fmt"\n\nfunc main() {\n    // Escribe tu código aquí\n}\n`;
+            break;
+        case 'rust':
+            template = `// ${challengeTitle}\n\nfn main() {\n    // Escribe tu código aquí\n}\n`;
+            break;
+        case 'swift':
+            template = `// ${challengeTitle}\n\nimport Foundation\n\n// Escribe tu código aquí\n`;
+            break;
+        case 'kotlin':
+            template = `// ${challengeTitle}\n\nfun main() {\n    // Escribe tu código aquí\n}\n`;
+            break;
+        case 'php':
+            template = `<?php\n\n// ${challengeTitle}\n\n// Escribe tu código aquí\n\n?>`;
+            break;
+        case 'ruby':
+            template = `# ${challengeTitle}\n\n# Escribe tu código aquí\n`;
+            break;
       }
+
+      setCode(template);
+
     } catch (err) {
       console.error('Error estableciendo código por defecto:', err);
     }
@@ -214,3 +249,5 @@ export default function SessionIDEPage() {
     </div>
   );
 }
+
+    
