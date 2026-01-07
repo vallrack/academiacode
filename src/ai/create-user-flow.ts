@@ -8,11 +8,11 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-export const CreateUserInputSchema = z.object({
+const CreateUserInputSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   displayName: z.string(),
@@ -21,12 +21,12 @@ export const CreateUserInputSchema = z.object({
 });
 export type CreateUserInput = z.infer<typeof CreateUserInputSchema>;
 
-export const CreateUserOutputSchema = z.object({
+const CreateUserOutputSchema = z.object({
   uid: z.string(),
   email: z.string(),
   displayName: z.string(),
 });
-export type CreateUserOutput = z.infer<typeof CreateUserOutputSchema>;
+type CreateUserOutput = z.infer<typeof CreateUserOutputSchema>;
 
 
 // Exported wrapper function to be called from the client

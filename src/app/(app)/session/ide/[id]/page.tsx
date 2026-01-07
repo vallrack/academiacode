@@ -14,7 +14,8 @@ import { Play, Send, AlertCircle, BookOpen, Code, Terminal, BrainCircuit, CheckC
 import { useToast } from '@/hooks/use-toast';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useParams } from 'next/navigation';
-import { analyzeStudentActivity, type AIAntiCheatingInput, type AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
+import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
+import type { AIAntiCheatingInput, AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useUser } from '@/firebase/auth/use-user';
@@ -162,7 +163,7 @@ export default function SessionIDEPage() {
           grade: result.grade,
           report: result.report,
           riskAssessment: result.riskAssessment,
-          testCaseResults: result.testCaseResults,
+          testCaseResults: JSON.stringify(result.testCaseResults),
           developedSkills: result.developedSkills,
         };
         
@@ -241,6 +242,19 @@ export default function SessionIDEPage() {
         default: return 'default';
     }
   };
+
+  const safeParseTestCaseResults = (results: any) => {
+    if (typeof results === 'string') {
+        try {
+            return JSON.parse(results);
+        } catch {
+            return [];
+        }
+    }
+    return Array.isArray(results) ? results : [];
+  };
+
+  const testCaseResultsToDisplay = safeParseTestCaseResults(analysisResult?.testCaseResults);
 
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col">
@@ -373,7 +387,7 @@ export default function SessionIDEPage() {
                         <div>
                             <h3 className="font-semibold text-lg mb-4">Resultados de los Casos de Prueba</h3>
                             <div className="space-y-4">
-                                {analysisResult.testCaseResults.map((result, index) => (
+                                {testCaseResultsToDisplay.map((result: any, index: number) => (
                                     <div key={index} className={`p-4 rounded-md border ${result.status === 'passed' ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700' : 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700'}`}>
                                         <div className="flex items-center justify-between">
                                             <p className="font-semibold">Caso de Prueba #{index + 1}</p>
