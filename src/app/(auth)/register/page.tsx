@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { cn } from '@/lib/utils';
 
 type GroupSchedule = {
   days: string[];
@@ -167,48 +168,44 @@ export default function RegisterPage() {
             />
           </div>
           
-          {!isSuperAdminEmail && (
-             <div className="grid gap-2">
-                <Label htmlFor="role">Soy un</Label>
-                <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-                    <SelectTrigger id="role">
-                        <SelectValue placeholder="Selecciona tu rol" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="STUDENT">Estudiante</SelectItem>
-                        <SelectItem value="TEACHER">Profesor</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-          )}
+          <div className={cn("grid gap-2", isSuperAdminEmail ? "hidden" : "grid")}>
+             <Label htmlFor="role">Soy un</Label>
+              <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
+                  <SelectTrigger id="role">
+                      <SelectValue placeholder="Selecciona tu rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="STUDENT">Estudiante</SelectItem>
+                      <SelectItem value="TEACHER">Profesor</SelectItem>
+                  </SelectContent>
+              </Select>
+          </div>
           
-          {role === 'STUDENT' && !isSuperAdminEmail && (
-            <div className="grid gap-2">
-                <Label htmlFor="group">Grupo</Label>
-                {loadingGroups ? (
-                    <Skeleton className="h-10 w-full" />
-                ) : (
-                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                        <SelectTrigger id="group" aria-label="Selecciona un grupo">
-                            <SelectValue placeholder="Selecciona tu grupo y jornada" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {groups && groups.length > 0 ? (
-                                groups.map(group => (
-                                    <SelectItem key={group.id} value={group.id}>
-                                        {group.name} - {formatSchedule(group.schedule)}
-                                    </SelectItem>
-                                ))
-                            ) : (
-                                <SelectItem value="no-groups" disabled>
-                                    No hay grupos disponibles
-                                </SelectItem>
-                            )}
-                        </SelectContent>
-                    </Select>
-                )}
-            </div>
-          )}
+          <div className={cn("grid gap-2", role === 'STUDENT' && !isSuperAdminEmail ? "grid" : "hidden")}>
+              <Label htmlFor="group">Grupo</Label>
+              {loadingGroups ? (
+                  <Skeleton className="h-10 w-full" />
+              ) : (
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                      <SelectTrigger id="group" aria-label="Selecciona un grupo">
+                          <SelectValue placeholder="Selecciona tu grupo y jornada" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {groups && groups.length > 0 ? (
+                              groups.map(group => (
+                                  <SelectItem key={group.id} value={group.id}>
+                                      {group.name} - {formatSchedule(group.schedule)}
+                                  </SelectItem>
+                              ))
+                          ) : (
+                              <SelectItem value="no-groups" disabled>
+                                  No hay grupos disponibles
+                              </SelectItem>
+                          )}
+                      </SelectContent>
+                  </Select>
+              )}
+          </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
