@@ -1,5 +1,7 @@
-import { genkit, Ai } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+'use client';
+
+import {genkit, Ai} from 'genkit';
+import {googleAI} from '@genkit-ai/google-genai';
 import * as admin from 'firebase-admin';
 
 // Initialize Firebase Admin SDK only if it hasn't been initialized yet
