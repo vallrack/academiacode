@@ -22,15 +22,16 @@ if (!admin.apps.length) {
         credential: admin.credential.cert(serviceAccount),
       });
     } else {
-      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Falling back to applicationDefault(). For local development, ensure you are authenticated via 'gcloud auth application-default login'.");
+      console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. For local development, this may fall back to application default credentials if available.");
+      // Attempt to initialize with default credentials for environments where it's set up
       admin.initializeApp({
         credential: admin.credential.applicationDefault(),
       });
     }
   } catch (e: any) {
-    console.error("Firebase Admin SDK initialization failed:", e);
+    console.error("Firebase Admin SDK initialization failed:", e.message);
     // Propagate a more informative error to the client if initialization fails.
-    throw new Error(`Server configuration error: Could not initialize Firebase Admin SDK. ${e.message}`);
+    throw new Error(`Server configuration error: Could not initialize Firebase Admin SDK. Ensure FIREBASE_SERVICE_ACCOUNT_KEY is set correctly. ${e.message}`);
   }
 }
 
