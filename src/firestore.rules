@@ -46,18 +46,18 @@ service cloud.firestore {
       // Lectura individual de un usuario
       allow get: if isOwner(userId) || isTeacherOrAdmin() || isSameGroup(userId);
       
-      // Listado de usuarios
-      // Profesores y admins pueden listar todos
-      // Estudiantes solo pueden listar si hacen query con where('groupId', '==', su_grupo)
+      // Listado de usuarios: Profesores y Admins pueden listar todo.
+      // Estudiantes pueden listar compañeros de su mismo grupo.
       allow list: if isTeacherOrAdmin() || (
-        isSignedIn() && 
+        isSignedIn() &&
         request.query.where != null &&
+        request.query.where.size() > 0 &&
         request.query.where[0][0] == 'groupId' &&
         request.query.where[0][2] == getUserData(request.auth.uid).groupId
       );
       
       // Creación de usuarios
-      allow create: if request.auth == null || isAdmin() || isOwner(userId);
+      allow create: if request.auth == null || isAdmin();
       
       // Actualización de usuarios
       allow update: if (isOwner(userId) && (
@@ -67,12 +67,6 @@ service cloud.firestore {
       
       // Eliminación de usuarios
       allow delete: if isAdmin();
-
-      match /submissions/{submissionId} {
-        allow read, list: if isOwner(userId) || isTeacherOrAdmin();
-        allow create: if isOwner(userId) && request.resource.data.studentId == userId;
-        allow update, delete: if isOwner(userId) || isAdmin();
-      }
       
       match /payments/{id} { 
           allow read, list: if isOwner(userId) || isAdmin();
@@ -98,12 +92,14 @@ service cloud.firestore {
       // Profesores y admins pueden leer todas las sumisiones.
       allow get: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isTeacherOrAdmin();
 
-      // Profesores y Admins pueden listar todas las sumisiones.
-      // Los estudiantes pueden listar sus propias sumisiones filtrando por su ID.
+      // CORREGIDO: Profesores y Admins pueden listar todas las sumisiones sin restricciones.
+      // Los estudiantes solo pueden listar sus propias sumisiones con un where clause.
       allow list: if isTeacherOrAdmin() || (
         isSignedIn() && 
-        request.query.where != null &&
+        request.query.limit != null &&
+        request.query.where.size() == 1 &&
         request.query.where[0][0] == 'studentId' && 
+        request.query.where[0][1] == '==' &&
         request.query.where[0][2] == request.auth.uid
       );
         
