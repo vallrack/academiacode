@@ -1,8 +1,8 @@
+// @/lib/firebase-admin.ts
 // IMPORTANTE: ELIMINA EL 'use server' DE AQUÍ
 
 import * as admin from 'firebase-admin';
 
-// Evita la reinicialización en entornos de desarrollo con recarga en caliente
 if (!admin.apps.length) {
   try {
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
