@@ -88,11 +88,14 @@ service cloud.firestore {
       // Profesores y admins pueden leer todas las sumisiones.
       allow get: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isTeacherOrAdmin();
 
-      // Profesores y Admins pueden listar todas las sumisiones.
-      // Los estudiantes pueden listar sus propias sumisiones.
+      // CORREGIDO: Profesores y Admins pueden listar todas las sumisiones sin restricciones.
+      // Los estudiantes solo pueden listar sus propias sumisiones con un where clause.
       allow list: if isTeacherOrAdmin() || (
         isSignedIn() && 
+        request.query.limit != null &&
+        request.query.where.size() == 1 &&
         request.query.where[0][0] == 'studentId' && 
+        request.query.where[0][1] == '==' &&
         request.query.where[0][2] == request.auth.uid
       );
         
