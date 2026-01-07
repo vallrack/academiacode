@@ -36,42 +36,81 @@ export default function AssignmentsPageContent() {
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
   
-  const canCreate = userProfile?.role === 'TEACHER' || userProfile?.role === 'SUPER_ADMIN';
+  const isTeacher = userProfile?.role === 'TEACHER';
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
+  const canCreate = isTeacher || isSuperAdmin;
+  const teacherManagedGroups = userProfile?.managedGroupIds || [];
+
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile) return null;
 
     const assignmentsRef = collection(firestore, 'assignments');
 
-    if (canCreate) {
-      if (filterGroup) {
-        return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
-      }
-      if (filterStudent) {
-         return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-      }
+    // Super Admin can see everything, respecting filters
+    if (isSuperAdmin) {
+      if (filterGroup) return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+      if (filterStudent) return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
       return query(assignmentsRef);
     }
     
+    // Teacher can only see assignments from their managed groups
+    if (isTeacher) {
+        // If teacher manages no groups, they see no assignments
+        if (teacherManagedGroups.length === 0) return null;
+        
+        // If a filter is applied, it must be for a group they manage
+        if (filterGroup && teacherManagedGroups.includes(filterGroup)) {
+            return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+        }
+        // When filtering by student, we don't need extra checks as the student list is already filtered
+        if (filterStudent) {
+            return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+        }
+
+        // No filter or invalid filter, so show all assignments for their managed groups
+        return query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
+    }
+    
+    // Student sees assignments for their group or for them individually
     if (userProfile.groupId) {
       return query(assignmentsRef, where('targetId', 'in', [userProfile.groupId, userProfile.uid]));
     }
 
+    // Student with no group only sees individual assignments
     return query(assignmentsRef, where('targetId', '==', userProfile.uid));
-  }, [firestore, userProfile, filterGroup, filterStudent, canCreate]);
+
+  }, [firestore, userProfile, filterGroup, filterStudent, isSuperAdmin, isTeacher, teacherManagedGroups]);
   
   const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
   
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore || !canCreate) return null;
-    return collection(firestore, 'groups');
-  }, [firestore, canCreate]);
+    
+    if(isSuperAdmin) {
+        return collection(firestore, 'groups');
+    }
+    
+    if(isTeacher && teacherManagedGroups.length > 0) {
+        return query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+    }
+
+    return null;
+  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
   const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
   
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !canCreate) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore, canCreate]);
+    
+    if(isSuperAdmin) {
+        return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    }
+    
+    if(isTeacher && teacherManagedGroups.length > 0) {
+        return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+    }
+    return null;
+  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
   const assignments = useMemo(() => {
