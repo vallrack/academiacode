@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Play, Send, AlertCircle, BookOpen, Code, Terminal, BrainCircuit, CheckCircle, XCircle, ShieldAlert } from 'lucide-react';
+import { Play, Send, AlertCircle, BookOpen, Code, Terminal, BrainCircuit, CheckCircle, XCircle, ShieldAlert, ListChecks } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { useParams } from 'next/navigation';
@@ -38,6 +38,15 @@ export default function SessionIDEPage() {
   }, [firestore, challengeId]);
 
   const { data: challenge, isLoading: isLoadingChallenge, error: docError } = useDoc<DocumentData>(challengeRef);
+  
+  const testCases = React.useMemo(() => {
+    if (!challenge?.testCases) return [];
+    try {
+        return JSON.parse(challenge.testCases);
+    } catch {
+        return [];
+    }
+  }, [challenge]);
 
   useEffect(() => {
     if (docError) {
@@ -93,17 +102,24 @@ export default function SessionIDEPage() {
   }, [challenge]);
 
   const handleRunCode = () => {
-      setIsRunning(true);
-      setOutput('Ejecutando código...');
-      
-      setTimeout(() => {
-        setOutput(`Salida simulada para el código:\n\n${code}`);
+    setIsRunning(true);
+    setOutput('Ejecutando simulación...');
+
+    // Simulate running against the first test case
+    setTimeout(() => {
+        if (testCases.length > 0) {
+            const firstCase = testCases[0];
+            const simulatedOutput = `--- Simulación de Ejecución ---\nInput: ${JSON.stringify(firstCase.input)}\nSalida Esperada: ${JSON.stringify(firstCase.expectedOutput)}\n\n(Esta es una simulación. El resultado real será evaluado al enviar.)`;
+            setOutput(simulatedOutput);
+        } else {
+            setOutput('No hay casos de prueba para simular. Añade casos de prueba al desafío.');
+        }
         setIsRunning(false);
         toast({
-          title: 'Ejecución Simulada',
-          description: 'La lógica de ejecución real debe ser implementada.',
+            title: 'Simulación Completa',
+            description: 'Se ha simulado la ejecución con el primer caso de prueba.',
         });
-      }, 1500);
+    }, 1500);
   };
   
   const handleSubmitCode = async () => {
@@ -147,6 +163,15 @@ export default function SessionIDEPage() {
     } finally {
         setIsSubmitting(false);
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    toast({
+      variant: 'destructive',
+      title: 'Acción no permitida',
+      description: 'No está permitido pegar código en el editor.',
+    });
   };
 
   if (isLoadingChallenge || !challengeId) {
@@ -220,13 +245,35 @@ export default function SessionIDEPage() {
       <div className="flex-1 overflow-y-auto">
         <ResizablePanelGroup direction="horizontal" className="min-h-full">
           <ResizablePanel defaultSize={40} minSize={25}>
-            <div className="flex h-full flex-col p-4 overflow-auto">
+            <div className="flex h-full flex-col p-4 gap-4 overflow-auto">
               <Card className="flex-1 flex flex-col">
                 <CardHeader>
                   <CardTitle>Descripción del Desafío</CardTitle>
                 </CardHeader>
                 <CardContent className="prose prose-sm dark:prose-invert max-w-none flex-1">
                   <p>{challenge.description || 'Sin descripción disponible'}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ListChecks className="h-5 w-5" />
+                        Casos de Prueba
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {testCases.length > 0 ? (
+                        <div className="space-y-3">
+                            {testCases.map((tc: any, index: number) => (
+                                <div key={index} className="text-xs font-mono bg-muted p-3 rounded-md">
+                                    <p><span className="font-semibold">Input:</span> {JSON.stringify(tc.input)}</p>
+                                    <p><span className="font-semibold">Output Esperado:</span> {JSON.stringify(tc.expectedOutput)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No se han definido casos de prueba para este desafío.</p>
+                    )}
                 </CardContent>
               </Card>
             </div>
@@ -243,6 +290,7 @@ export default function SessionIDEPage() {
                   <Textarea 
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
+                    onPaste={handlePaste}
                     placeholder="Escribe tu código aquí..."
                     className="flex-1 font-mono text-sm resize-none"
                   />
@@ -292,19 +340,21 @@ export default function SessionIDEPage() {
                             <h3 className="font-semibold text-lg mb-4">Resultados de los Casos de Prueba</h3>
                             <div className="space-y-4">
                                 {analysisResult.testCaseResults.map((result, index) => (
-                                    <div key={index} className={`p-4 rounded-md border ${result.status === 'passed' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                                    <div key={index} className={`p-4 rounded-md border ${result.status === 'passed' ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700' : 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700'}`}>
                                         <div className="flex items-center justify-between">
                                             <p className="font-semibold">Caso de Prueba #{index + 1}</p>
                                             {result.status === 'passed' ? (
-                                                <Badge variant="secondary" className="bg-green-100 text-green-800"><CheckCircle className="mr-1.5 h-4 w-4"/>Pasó</Badge>
+                                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"><CheckCircle className="mr-1.5 h-4 w-4"/>Pasó</Badge>
                                             ) : (
                                                 <Badge variant="destructive"><XCircle className="mr-1.5 h-4 w-4"/>Falló</Badge>
                                             )}
                                         </div>
                                         <div className="mt-3 text-xs font-mono text-muted-foreground space-y-2">
-                                            <p><span className="font-semibold">Input:</span> {JSON.stringify(result.input)}</p>
-                                            <p><span className="font-semibold">Salida Esperada:</span> {JSON.stringify(result.expectedOutput)}</p>
-                                            <p><span className="font-semibold">Salida Real (según la IA):</span> {JSON.stringify(result.actualOutput)}</p>
+                                            <p><span className="font-semibold text-foreground">Input:</span> {JSON.stringify(result.input)}</p>
+                                            <p><span className="font-semibold text-foreground">Salida Esperada:</span> {JSON.stringify(result.expectedOutput)}</p>
+                                            {result.actualOutput !== undefined &&
+                                                <p><span className="font-semibold text-foreground">Salida Real (según la IA):</span> {JSON.stringify(result.actualOutput)}</p>
+                                            }
                                         </div>
                                     </div>
                                 ))}
@@ -318,3 +368,5 @@ export default function SessionIDEPage() {
     </div>
   );
 }
+
+    
