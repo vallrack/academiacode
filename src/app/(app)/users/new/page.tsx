@@ -4,9 +4,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, collection, DocumentData, Query } from 'firebase/firestore';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, DocumentData, Query } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +16,7 @@ import { ChevronLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
+import { createUser, type CreateUserInput } from '@/ai/create-user-flow';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
@@ -43,7 +43,6 @@ export default function NewUserPage() {
   const [isSaving, setIsSaving] = useState(false);
   
   const router = useRouter();
-  const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
   const { user } = useUser();
@@ -67,15 +66,6 @@ export default function NewUserPage() {
   };
 
   const handleSave = async () => {
-    if (!auth || !firestore) {
-      toast({
-        variant: "destructive",
-        title: "Error de Servicio",
-        description: "Los servicios de Firebase no están disponibles.",
-      });
-      return;
-    }
-
     if (!displayName || !email || !password || !role) {
       toast({
         variant: "destructive",
@@ -96,22 +86,17 @@ export default function NewUserPage() {
 
     setIsSaving(true);
 
+    const userInput: CreateUserInput = {
+      email,
+      password,
+      displayName,
+      role,
+      groupId: role === 'STUDENT' ? selectedGroup : null,
+    };
+
     try {
-      // NOTE: Creating a user via the client SDK like this will sign in the admin
-      // as the new user. This is a known limitation of the client SDK.
-      // A proper solution would involve a Cloud Function.
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-
-      const userProfileData = {
-        uid: newUser.uid,
-        displayName,
-        email,
-        role,
-        groupId: role === 'STUDENT' ? selectedGroup : null,
-      };
-
-      await setDoc(doc(firestore, 'users', newUser.uid), userProfileData);
+      // Call the Genkit flow instead of the client SDK
+      await createUser(userInput);
 
       toast({
         title: "¡Usuario Creado!",
@@ -120,13 +105,11 @@ export default function NewUserPage() {
       router.push('/users');
 
     } catch (error: any) {
-      console.error("Error creating user:", error);
+      console.error("Error creating user via flow:", error);
        toast({
         variant: "destructive",
         title: "Error al Crear Usuario",
-        description: error.code === 'auth/email-already-in-use' ? 'El correo electrónico ya está en uso.' : 
-                     error.code === 'auth/weak-password' ? 'La contraseña debe tener al menos 6 caracteres.' :
-                     'No se pudo crear la cuenta de usuario.',
+        description: error.message || "No se pudo crear la cuenta de usuario. Revisa la consola para más detalles.",
       });
     } finally {
       setIsSaving(false);
