@@ -93,7 +93,7 @@ export default function RegisterPage() {
       });
       
       // Redirect to login page instead of trying to sign in immediately
-      // This avoids the custom claims propagation timing issue
+      // This avoids custom claims propagation timing issues
       router.push('/login');
 
     } catch (error: any) {

@@ -3,7 +3,7 @@
  * @fileOverview A Genkit flow for securely creating Firebase users.
  *
  * This flow uses the Firebase Admin SDK to create a new user with email/password
- * and sets their custom claims and Firestore profile document.
+ * and sets their Firestore profile document. It no longer uses Custom Claims.
  */
 
 import { ai } from '@/ai/genkit';
@@ -44,10 +44,7 @@ const createUserFlow = ai.defineFlow(
         displayName,
       });
 
-      // 2. Set custom claims for role-based access control
-      await getAuth().setCustomUserClaims(userRecord.uid, { role });
-
-      // 3. Create user profile in Firestore
+      // 2. Create user profile in Firestore
       const userProfileData: any = {
         uid: userRecord.uid,
         email,

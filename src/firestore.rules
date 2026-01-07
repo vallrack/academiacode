@@ -1,10 +1,9 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // --------------------------------------------------------------------------
-    // Funciones Auxiliares Basadas en Custom Claims
+    // Funciones Auxiliares
     // --------------------------------------------------------------------------
 
     function isSignedIn() {
@@ -15,27 +14,27 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Lee el rol directamente del token de autenticación (Custom Claim)
-    function getRole() {
-      return request.auth.token.role;
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
     }
 
     function isTeacher() {
-      return isSignedIn() && getRole() == 'TEACHER';
+      let role = getUserData(request.auth.uid).role;
+      return isSignedIn() && role == 'TEACHER';
     }
 
     function isTeacherOrAdmin() {
-      return isSignedIn() && (getRole() == 'SUPER_ADMIN' || getRole() == 'TEACHER');
+      let role = getUserData(request.auth.uid).role;
+      return isSignedIn() && (role == 'SUPER_ADMIN' || role == 'TEACHER');
     }
     
     function isAdmin() {
-      return isSignedIn() && getRole() == 'SUPER_ADMIN';
+      return isSignedIn() && getUserData(request.auth.uid).role == 'SUPER_ADMIN';
     }
 
-    // Esta función sigue necesitando leer Firestore porque `managedGroupIds` está en el documento.
     function isStudentInManagedGroup(studentId) {
-        let teacherData = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-        let studentData = get(/databases/$(database)/documents/users/$(studentId)).data;
+        let teacherData = getUserData(request.auth.uid);
+        let studentData = getUserData(studentId);
         // Ensure teacherData and studentData and their properties are not null before access
         return teacherData != null && teacherData.managedGroupIds != null && 
                studentData != null && studentData.groupId != null &&
@@ -56,19 +55,13 @@ service cloud.firestore {
       // Admins y Profesores pueden listar usuarios. El filtrado específico se hace en el cliente.
       allow list: if isTeacherOrAdmin();
       
-      // Creación de usuarios:
-      // - Cualquiera puede crear su propio doc si está autenticado (registro).
-      // - Un admin puede crear cualquier doc.
-      // - Un usuario no autenticado (para el formulario de registro antes de que el perfil se cree)
+      // Creación de usuarios: Un usuario no autenticado (registro), el propio dueño del perfil, o un Admin.
       allow create: if isOwner(userId) || isAdmin() || request.auth == null;
       
       // Actualización de usuarios:
-      // El dueño puede actualizar su propio perfil (pero no su rol, a menos que sea el mismo).
+      // El dueño puede actualizar su propio perfil (pero no su rol).
       // Un Admin puede actualizar cualquier perfil, incluyendo roles.
-      allow update: if (isOwner(userId) && (
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) ||
-         resource.data.role == request.resource.data.role
-      )) || isAdmin();
+      allow update: if (isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))) || isAdmin();
       
       // Eliminación de usuarios: Solo Admins.
       allow delete: if isAdmin();
