@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -111,7 +112,7 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // Lectura pública necesaria para el formulario de registro.
+      // Lectura pública necesaria para el formulario de registro y para que los profesores vean sus grupos.
       allow get, list: if true;
       // Solo los Super Admins pueden crear, modificar o eliminar grupos.
       allow write: if isAdmin();

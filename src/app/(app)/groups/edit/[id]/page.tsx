@@ -38,6 +38,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useUserProfile } from '@/contexts/user-profile-context';
 
 const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -48,6 +49,7 @@ type Student = {
 };
 
 export default function EditGroupPage() {
+  const { userProfile } = useUserProfile();
   const [name, setName] = useState('');
   const [selectedDays, setSelectedDays] = useState<Record<string, boolean>>({});
   const [startTime, setStartTime] = useState('');
@@ -60,6 +62,8 @@ export default function EditGroupPage() {
   const router = useRouter();
   const params = useParams();
   const { id: groupId } = params;
+  
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || !groupId) return null;
@@ -119,6 +123,11 @@ export default function EditGroupPage() {
   };
 
   const handleUpdate = async () => {
+    if (!isSuperAdmin) {
+        toast({ variant: 'destructive', title: 'Permiso Denegado', description: 'No tienes permiso para realizar esta acción.' });
+        return;
+    }
+
     const finalSelectedDays = Object.keys(selectedDays).filter(day => selectedDays[day]);
     if (!name || finalSelectedDays.length === 0 || !startTime || !endTime) {
       toast({
@@ -194,16 +203,18 @@ export default function EditGroupPage() {
           </Link>
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-          Modificar Grupo
+          {isSuperAdmin ? 'Modificar Grupo' : 'Detalles del Grupo'}
         </h1>
-        <div className="hidden items-center gap-2 md:ml-auto md:flex">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/groups">Cancelar</Link>
-          </Button>
-          <Button size="sm" onClick={handleUpdate} disabled={isSaving}>
-            {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-          </Button>
-        </div>
+        {isSuperAdmin && (
+            <div className="hidden items-center gap-2 md:ml-auto md:flex">
+                <Button variant="outline" size="sm" asChild>
+                    <Link href="/groups">Cancelar</Link>
+                </Button>
+                <Button size="sm" onClick={handleUpdate} disabled={isSaving}>
+                    {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                </Button>
+            </div>
+        )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -211,7 +222,7 @@ export default function EditGroupPage() {
                 <CardHeader>
                 <CardTitle>Detalles del Grupo</CardTitle>
                 <CardDescription>
-                    Modifica los detalles del grupo y su horario.
+                    {isSuperAdmin ? 'Modifica los detalles del grupo y su horario.' : 'Información del grupo y su horario.'}
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -224,6 +235,7 @@ export default function EditGroupPage() {
                         className="w-full"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        disabled={!isSuperAdmin}
                     />
                     </div>
                     <div className="grid gap-3">
@@ -235,6 +247,7 @@ export default function EditGroupPage() {
                             id={`day-${day}`}
                             checked={selectedDays[day] || false}
                             onCheckedChange={() => handleDayChange(day)}
+                            disabled={!isSuperAdmin}
                             />
                             <Label htmlFor={`day-${day}`} className="font-normal">{day}</Label>
                         </div>
@@ -250,6 +263,7 @@ export default function EditGroupPage() {
                             className="w-full"
                             value={startTime}
                             onChange={(e) => setStartTime(e.target.value)}
+                            disabled={!isSuperAdmin}
                         />
                         </div>
                         <div className="grid gap-3">
@@ -260,6 +274,7 @@ export default function EditGroupPage() {
                             className="w-full"
                             value={endTime}
                             onChange={(e) => setEndTime(e.target.value)}
+                            disabled={!isSuperAdmin}
                         />
                         </div>
                     </div>
@@ -308,14 +323,16 @@ export default function EditGroupPage() {
             </Card>
         </div>
       </div>
-       <div className="flex items-center justify-center gap-2 md:hidden">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/groups">Cancelar</Link>
-        </Button>
-        <Button size="sm" onClick={handleUpdate} disabled={isSaving}>
-          {isSaving ? 'Guardando...' : 'Guardar Cambios'}
-        </Button>
-      </div>
+      {isSuperAdmin && (
+        <div className="flex items-center justify-center gap-2 md:hidden">
+            <Button variant="outline" size="sm" asChild>
+            <Link href="/groups">Cancelar</Link>
+            </Button>
+            <Button size="sm" onClick={handleUpdate} disabled={isSaving}>
+            {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+        </div>
+      )}
     </div>
   );
 }
