@@ -15,17 +15,13 @@ import { getFirestore } from 'firebase-admin/firestore';
 // Initialize Firebase Admin SDK only if it hasn't been initialized yet
 if (!admin.apps.length) {
   try {
-    // Use service account credentials if available (for production environments)
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)
-      : null;
-
-    if (serviceAccount) {
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (serviceAccountString) {
+      const serviceAccount = JSON.parse(serviceAccountString);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
     } else {
-      // Fallback for local development or environments with default credentials
       console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found. Falling back to applicationDefault(). For local development, ensure you are authenticated via 'gcloud auth application-default login'.");
       admin.initializeApp({
         credential: admin.credential.applicationDefault(),
@@ -33,6 +29,8 @@ if (!admin.apps.length) {
     }
   } catch (e: any) {
     console.error("Firebase Admin SDK initialization failed:", e);
+    // Propagate a more informative error to the client if initialization fails.
+    throw new Error(`Server configuration error: Could not initialize Firebase Admin SDK. ${e.message}`);
   }
 }
 
