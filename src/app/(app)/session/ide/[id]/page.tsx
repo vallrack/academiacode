@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, type DocumentData } from 'firebase/firestore';
 import { useDoc } from "@/firebase/firestore/use-doc";
@@ -14,12 +15,9 @@ import { Play, Send, AlertCircle, BookOpen, Code, Terminal } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
-interface SessionIDEPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function SessionIDEPage({ params }: SessionIDEPageProps) {
-  const { id: challengeId } = use(params);
+export default function SessionIDEPage() {
+  const params = useParams();
+  const challengeId = Array.isArray(params.id) ? params.id[0] : params.id;
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -159,4 +157,3 @@ export default function SessionIDEPage({ params }: SessionIDEPageProps) {
     </div>
   );
 }
-
