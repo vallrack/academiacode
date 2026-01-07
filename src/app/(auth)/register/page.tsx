@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUser } from '@/ai/create-user-flow';
 import { collection, type DocumentData, type Query } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useAuth } from '@/firebase';
 
 type GroupSchedule = {
   days: string[];
@@ -40,10 +39,10 @@ export default function RegisterPage() {
   const [selectedGroup, setSelectedGroup] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
 
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -81,7 +80,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Create user via server action, ensuring the correct role is passed
+      // 1. Create user and set custom claims via server action
       await createUser({
         email,
         password,
@@ -90,16 +89,23 @@ export default function RegisterPage() {
         groupId: finalRole === 'STUDENT' ? selectedGroup : null,
       });
 
-      // Sign in the user to get a session
+      // 2. Sign in the user to get a session
       if (auth) {
         await signInWithEmailAndPassword(auth, email, password);
+        
+        // 3. CRITICAL: Force a token refresh to get the new custom claims
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await currentUser.getIdToken(true);
+        }
       }
 
       toast({
         title: '¡Cuenta Creada y Sesión Iniciada!',
-        description: `Te has registrado correctamente. Redirigiendo al panel...`,
+        description: `Te has registrado correctamente como ${finalRole}. Redirigiendo...`,
       });
       
+      // 4. Redirect to the dashboard
       router.push('/dashboard');
 
     } catch (error: any) {
