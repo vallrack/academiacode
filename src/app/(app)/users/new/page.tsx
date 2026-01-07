@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -20,6 +19,15 @@ import { createUser } from '@/ai/create-user-flow';
 
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
+// Define the input type locally instead of importing from server file
+type CreateUserInput = {
+  email: string;
+  password: string;
+  displayName: string;
+  role: UserRole;
+  groupId: string | null;
+};
+
 type GroupSchedule = {
   days: string[];
   startTime: string;
@@ -30,15 +38,6 @@ type Group = {
   id: string; 
   name: string;
   schedule: GroupSchedule | string;
-};
-
-// Define the input type for the createUser function directly in the client component
-type CreateUserInput = {
-  email: string;
-  password: string;
-  displayName: string;
-  role: "STUDENT" | "TEACHER" | "SUPER_ADMIN";
-  groupId: string | null | undefined;
 };
 
 
@@ -104,7 +103,7 @@ export default function NewUserPage() {
     };
 
     try {
-      // Call the Genkit flow instead of the client SDK
+      // Call the server action
       await createUser(userInput);
 
       toast({
@@ -114,8 +113,8 @@ export default function NewUserPage() {
       router.push('/users');
 
     } catch (error: any) {
-      console.error("Error creating user via flow:", error);
-       toast({
+      console.error("Error creating user via server action:", error);
+      toast({
         variant: "destructive",
         title: "Error al Crear Usuario",
         description: error.message || "No se pudo crear la cuenta de usuario. Revisa la consola para más detalles.",
