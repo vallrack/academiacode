@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, type DocumentData } from 'firebase/firestore';
+import { doc, type DocumentData, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -17,12 +17,14 @@ import { useParams } from 'next/navigation';
 import { analyzeStudentActivity, type AIAntiCheatingInput, type AIAntiCheatingOutput } from '@/ai/ai-anti-cheating';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useUser } from '@/firebase/auth/use-user';
 
 export default function SessionIDEPage() {
   const params = useParams();
   const challengeId = Array.isArray(params.id) ? params.id[0] : params.id;
   
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const [code, setCode] = useState('');
@@ -123,11 +125,11 @@ export default function SessionIDEPage() {
   };
   
   const handleSubmitCode = async () => {
-    if (!challenge) {
+    if (!challenge || !user || !firestore) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'No se ha cargado ningún desafío para evaluar.'
+            description: 'No se ha cargado ningún desafío, usuario o conexión para evaluar.'
         });
         return;
     }
@@ -149,16 +151,33 @@ export default function SessionIDEPage() {
 
         const result = await analyzeStudentActivity(input);
         setAnalysisResult(result);
+
+        // Save submission to Firestore
+        const submissionData = {
+          studentId: user.uid,
+          challengeId: challengeId,
+          challengeTitle: challenge.title,
+          submissionDate: serverTimestamp(),
+          code,
+          grade: result.grade,
+          report: result.report,
+          riskAssessment: result.riskAssessment,
+          testCaseResults: result.testCaseResults,
+          developedSkills: result.developedSkills,
+        };
+        
+        await addDoc(collection(firestore, 'submissions'), submissionData);
+
         toast({
-            title: '¡Análisis Completado!',
-            description: 'El informe de la IA está listo a continuación.',
+            title: '¡Análisis y Guardado Completado!',
+            description: 'El informe de la IA está listo y tu sumisión ha sido guardada.',
         });
     } catch (err: any) {
-        console.error('Error durante el análisis de IA:', err);
+        console.error('Error durante el análisis o guardado:', err);
         toast({
             variant: 'destructive',
-            title: 'Error en la IA',
-            description: err.message || 'No se pudo completar el análisis del código.',
+            title: 'Error en el Proceso',
+            description: err.message || 'No se pudo completar el análisis o guardado del código.',
         });
     } finally {
         setIsSubmitting(false);
@@ -208,7 +227,7 @@ export default function SessionIDEPage() {
           <AlertTitle>Error: Desafío no Encontrado</AlertTitle>
           <AlertDescription>
             No se pudo cargar el desafío solicitado. Puede que haya sido eliminado o el ID sea incorrecto.
-          </AlertDescription>
+          </AledrtDescription>
         </Alert>
       </div>
     );
@@ -237,7 +256,7 @@ export default function SessionIDEPage() {
           </Button>
           <Button onClick={handleSubmitCode} disabled={isSubmitting}>
             <Send className="mr-2 h-4 w-4"/>
-            {isSubmitting ? 'Evaluando...' : 'Enviar'}
+            {isSubmitting ? 'Evaluando...' : 'Enviar y Calificar'}
           </Button>
         </div>
       </header>
@@ -320,7 +339,13 @@ export default function SessionIDEPage() {
                             <BrainCircuit className="text-primary"/>
                             Informe de Análisis de IA
                         </CardTitle>
-                        <CardDescription>Resultados de la evaluación de tu código por parte de la IA.</CardDescription>
+                        <div className="flex items-center justify-between pt-2">
+                          <CardDescription>Resultados de la evaluación de tu código por parte de la IA.</CardDescription>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-medium text-muted-foreground">Calificación:</span>
+                            <span className="text-2xl font-bold text-primary">{analysisResult.grade}/5</span>
+                          </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div>
@@ -334,6 +359,15 @@ export default function SessionIDEPage() {
                         <div>
                             <h3 className="font-semibold text-lg mb-2">Informe Detallado</h3>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisResult.report}</p>
+                        </div>
+                         <Separator />
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2">Habilidades Demostradas</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {analysisResult.developedSkills.map((skill, index) => (
+                                    <Badge key={index} variant="secondary">{skill}</Badge>
+                                ))}
+                            </div>
                         </div>
                         <Separator />
                         <div>

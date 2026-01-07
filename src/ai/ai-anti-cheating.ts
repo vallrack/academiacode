@@ -5,7 +5,7 @@
  * @fileOverview This file defines an AI-powered flow for code evaluation and anti-cheating analysis.
  *
  * The flow takes student code, exam details, and test cases as input. It analyzes the code for
- * cheating behaviors and evaluates its correctness against the provided test cases.
+ * cheating behaviors, evaluates its correctness against test cases, assigns a grade, and identifies skills.
  *
  * @interface AIAntiCheatingInput - Defines the input schema for the flow.
  * @interface AIAntiCheatingOutput - Defines the output schema for the flow.
@@ -52,8 +52,11 @@ const AIAntiCheatingOutputSchema = z.object({
     expectedOutput: z.any(),
     status: z.enum(['passed', 'failed']).describe('Si el código del estudiante pasó o falló este caso de prueba.'),
     actualOutput: z.any().optional().describe('El resultado real producido por la lógica del código del estudiante.')
-  })).describe('Un array que contiene los resultados de la ejecución de cada caso de prueba.')
+  })).describe('Un array que contiene los resultados de la ejecución de cada caso de prueba.'),
+  grade: z.number().min(1).max(5).describe('Una calificación numérica de 1 a 5 basada en la efectividad del código y el cumplimiento de los requisitos.'),
+  developedSkills: z.array(z.string()).describe('Una lista de 2-3 habilidades de programación clave (ej. "Manipulación de Arrays", "Lógica Condicional") que el estudiante demostró en su solución.'),
 });
+
 
 export type AIAntiCheatingOutput = z.infer<typeof AIAntiCheatingOutputSchema>;
 
@@ -68,8 +71,10 @@ const aiAntiCheatingPrompt = ai.definePrompt({
   input: {schema: AIAntiCheatingInputSchema},
   output: {schema: AIAntiCheatingOutputSchema},
   prompt: `Eres una herramienta de IA para supervisión y evaluación de código. Tu respuesta DEBE estar completamente en español. Tus objetivos son:
-  1.  Analizar la actividad del estudiante para identificar posibles trampas.
-  2.  Evaluar la corrección del código del estudiante frente a un conjunto de casos de prueba.
+  1. Analizar la actividad del estudiante para identificar posibles trampas.
+  2. Evaluar la corrección del código del estudiante frente a un conjunto de casos de prueba.
+  3. Asignar una calificación numérica de 1 a 5.
+  4. Identificar las habilidades de programación demostradas.
 
   ## Detalles del Examen y Análisis de Trampas
   - Detalles del Examen: {{{examDetails}}}
@@ -85,22 +90,35 @@ const aiAntiCheatingPrompt = ai.definePrompt({
   {{#if videoDataUri}}Grabación de Video: {{media url=videoDataUri}}{{/if}}
   {{#if screenDataUri}}Grabación de Pantalla: {{media url=screenDataUri}}{{/if}}
 
-  ## Evaluación de la Corrección del Código
+  ## Evaluación de la Corrección y Calificación
   - Debes evaluar el código del estudiante proporcionado frente a los casos de prueba dados.
   - El estudiante puede haber escrito un script, una función o cualquier otra estructura válida. Tu evaluación debe ser lo suficientemente flexible como para entender la lógica del estudiante, independientemente de la estructura.
-  - Para cada caso de prueba, determina si la lógica del código del estudiante produce la salida esperada para la entrada dada.
+  - Para cada caso de prueba, determina si la lógica del código del estudiante produce la salida esperada.
   - Tu respuesta DEBE incluir un array 'testCaseResults' con el estado ('passed' o 'failed') para cada caso de prueba.
-  - El código del estudiante podría usar APIs interactivas como 'prompt()'. Debes razonar sobre la lógica del código como si la 'input' del caso de prueba se proporcionara a esos prompts. No intentes ejecutarlos.
+  - El código del estudiante podría usar APIs interactivas como 'prompt()'. Debes razonar sobre la lógica como si la 'input' del caso de prueba se proporcionara a esos prompts. No intentes ejecutarlos.
 
   - Casos de Prueba (JSON):
     \`\`\`json
     {{{testCases}}}
     \`\`\`
 
+  ## Calificación (1-5)
+  Asigna una calificación ('grade') basada en estos criterios:
+  - 5: El código es correcto, pasa todos los casos de prueba y sigue las mejores prácticas y parámetros del desafío.
+  - 4: El código es funcional y pasa la mayoría de los casos de prueba, pero tiene errores menores o no es óptimo.
+  - 3: El código produce una respuesta pero no sigue los parámetros solicitados o falla en varios casos de prueba.
+  - 2: El código tiene errores de sintaxis graves o una lógica muy defectuosa que impide que se complete la mayoría de los casos de prueba.
+  - 1: El código está incompleto, no da una respuesta coherente o no tiene relación con el problema.
+
+  ## Habilidades Desarrolladas
+  - Analiza el código y extrae una lista de 2 a 3 habilidades clave que el estudiante aplicó. Ejemplos: "Manipulación de Strings", "Algoritmos de Búsqueda", "Programación Orientada a Objetos", "Manejo de Errores". Asigna esto al campo 'developedSkills'.
+
   ## Salida Final
-  - Basado en tu análisis, proporciona un 'report' detallado explicando tanto los riesgos de trampa como la corrección del código.
-  - Proporciona una 'riskAssessment' general ("Bajo", "Medio", o "Alto") para las trampas.
-  - Proporciona el array 'testCaseResults' con el resultado de cada caso de prueba.
+  - Proporciona un 'report' detallado.
+  - Proporciona una 'riskAssessment' general.
+  - Proporciona el array 'testCaseResults'.
+  - Proporciona el 'grade' numérico.
+  - Proporciona el array 'developedSkills'.
   `,
 });
 
