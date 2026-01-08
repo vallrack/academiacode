@@ -5,6 +5,8 @@ import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'] });
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'AcademiaCode',
   description: 'La plataforma moderna para la evaluación de código académico.',
