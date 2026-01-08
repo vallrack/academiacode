@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFirestore } from "@/firebase";
 import { collection, query, where, onSnapshot, type DocumentData } from "firebase/firestore";
 import { Calendar, BookOpen, Users, Clock, User, PlusCircle, AlertCircle, Filter } from 'lucide-react';
@@ -33,137 +33,167 @@ type Assignment = DocumentData & { id: string };
 export default function AssignmentsPageContent() {
   const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const router = useRouter();
   
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
-
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [loadingAssignments, setLoadingAssignments] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [groups, setGroups] = useState<DocumentData[]>([]);
+  const [students, setStudents] = useState<DocumentData[]>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
   const isTeacher = userProfile?.role === 'TEACHER';
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
   const canCreate = isTeacher || isSuperAdmin;
   const teacherManagedGroups = userProfile?.managedGroupIds || [];
 
-  const [groups, setGroups] = useState<DocumentData[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(true);
-  const [students, setStudents] = useState<DocumentData[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(true);
-
- useEffect(() => {
-    if (!firestore || !canCreate) {
-      setLoadingGroups(false);
-      setLoadingStudents(false);
-      return;
-    }
-
-    let groupsQuery: any;
-    if (isSuperAdmin) {
-        groupsQuery = collection(firestore, 'groups');
-    } else if (isTeacher && teacherManagedGroups.length > 0) {
-      groupsQuery = query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
-    } else {
-      setLoadingGroups(false);
-      setGroups([]);
-    }
-    
-    if (groupsQuery) {
-        const unsubscribeGroups = onSnapshot(groupsQuery, snapshot => {
-          setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-          setLoadingGroups(false);
-        }, () => setLoadingGroups(false));
-         return () => unsubscribeGroups();
-    }
-
-
-    let studentsQuery: any;
-    if (isSuperAdmin) {
-        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-    } else if (isTeacher && teacherManagedGroups.length > 0) {
-      studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
-    } else {
-      setLoadingStudents(false);
-      setStudents([]);
-    }
-
-    if(studentsQuery) {
-        const unsubscribeStudents = onSnapshot(studentsQuery, snapshot => {
-          setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-          setLoadingStudents(false);
-        }, () => setLoadingStudents(false));
-        return () => unsubscribeStudents();
-    }
-  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
-
-
   useEffect(() => {
-    if (!firestore || !userProfile) {
-      setLoadingAssignments(false);
+    if (loadingProfile) {
+      setIsLoading(true);
       return;
-    };
-
-    setLoadingAssignments(true);
-    let assignmentsQuery: any;
-    const assignmentsRef = collection(firestore, 'assignments');
-
-    if (isSuperAdmin) {
-      if (filterGroup) {
-        assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
-      } else if (filterStudent) {
-        assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-      } else {
-        assignmentsQuery = query(assignmentsRef); // Super Admin sees all
-      }
-    } else if (isTeacher) {
-        if (teacherManagedGroups.length === 0) {
-          setAssignments([]);
-          setLoadingAssignments(false);
-          return;
-        };
-        if (filterGroup && teacherManagedGroups.includes(filterGroup)) {
-            assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
-        } else if (filterStudent) {
-            // A teacher can filter by a student they manage
-            assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-        } else {
-            // By default, a teacher sees assignments for their managed groups
-            assignmentsQuery = query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
-        }
-    } else { // Student
-      const studentTargets = [userProfile.uid];
-      if (userProfile.groupId) studentTargets.push(userProfile.groupId);
-      assignmentsQuery = query(assignmentsRef, where('targetId', 'in', studentTargets));
+    }
+    if (!userProfile) {
+        setIsLoading(false);
+        setError(new Error("No se pudo cargar el perfil del usuario."));
+        return;
+    }
+    if (!firestore) {
+        setIsLoading(false);
+        setError(new Error("No se pudo inicializar la conexión con la base de datos."));
+        return;
     }
 
-    const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
-      let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const unsubscribes: (() => void)[] = [];
+    let dependenciesLoaded = 0;
+    const requiredDependencies = canCreate ? 2 : 0; // 2 for teacher/admin (groups, students), 0 for student
 
-      if (userProfile.role === 'STUDENT') {
-        results = results.filter(a => 
-          (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
-          (a.targetType === 'student' && a.targetId === userProfile.uid)
-        );
-      }
+    const checkAllDependenciesLoaded = () => {
+        dependenciesLoaded++;
+        if (dependenciesLoaded >= requiredDependencies) {
+            // Now that filters are loaded, load assignments
+            loadAssignments();
+        }
+    };
+    
+    if (canCreate) {
+        // Fetch Groups for filters
+        let groupsQuery: any;
+        if (isSuperAdmin) {
+            groupsQuery = collection(firestore, 'groups');
+        } else if (isTeacher && teacherManagedGroups.length > 0) {
+          groupsQuery = query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+        }
+        
+        if (groupsQuery) {
+            const unsubGroups = onSnapshot(groupsQuery, snapshot => {
+              setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+              checkAllDependenciesLoaded();
+            }, (err) => {
+              console.error("Error fetching groups:", err);
+              setError(err);
+              setIsLoading(false);
+            });
+            unsubscribes.push(unsubGroups);
+        } else {
+            setGroups([]);
+            checkAllDependenciesLoaded();
+        }
 
-      results.sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
-      setAssignments(results);
-      setLoadingAssignments(false);
-      setError(null);
-    }, (err) => {
-      console.error("Error fetching assignments: ", err);
-      setError(err);
-      setLoadingAssignments(false);
-    });
+        // Fetch Students for filters
+        let studentsQuery: any;
+        if (isSuperAdmin) {
+            studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+        } else if (isTeacher && teacherManagedGroups.length > 0) {
+          studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+        }
 
-    return () => unsubscribe();
-  }, [firestore, userProfile, filterGroup, filterStudent, isSuperAdmin, isTeacher, teacherManagedGroups]);
+        if (studentsQuery) {
+            const unsubStudents = onSnapshot(studentsQuery, snapshot => {
+              setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+              checkAllDependenciesLoaded();
+            }, (err) => {
+              console.error("Error fetching students:", err);
+              setError(err);
+              setIsLoading(false);
+            });
+            unsubscribes.push(unsubStudents);
+        } else {
+            setStudents([]);
+            checkAllDependenciesLoaded();
+        }
+
+    } else {
+        loadAssignments();
+    }
 
 
-  const isLoading = loadingProfile || loadingAssignments;
-  
+    function loadAssignments() {
+        let assignmentsQuery: any;
+        const assignmentsRef = collection(firestore, 'assignments');
+
+        if (isSuperAdmin) {
+            if (filterGroup) {
+                assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+            } else if (filterStudent) {
+                assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+            } else {
+                assignmentsQuery = query(assignmentsRef);
+            }
+        } else if (isTeacher) {
+            if (teacherManagedGroups.length === 0) {
+                setAssignments([]);
+                setIsLoading(false);
+                return;
+            }
+            if (filterGroup && teacherManagedGroups.includes(filterGroup)) {
+                assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+            } else if (filterStudent) {
+                const managedStudent = students.find(s => s.id === filterStudent);
+                if (managedStudent && teacherManagedGroups.includes(managedStudent.groupId)) {
+                    assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+                } else {
+                    assignmentsQuery = query(assignmentsRef, where('targetId', 'in', [])); // Empty query
+                }
+            } else {
+                assignmentsQuery = query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
+            }
+        } else { // Student
+            const studentTargets = [userProfile.uid];
+            if (userProfile.groupId) studentTargets.push(userProfile.groupId);
+            assignmentsQuery = query(assignmentsRef, where('targetId', 'in', studentTargets));
+        }
+
+        const unsubAssignments = onSnapshot(assignmentsQuery, (snapshot) => {
+            let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            if (userProfile.role === 'STUDENT') {
+                results = results.filter(a => 
+                    (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
+                    (a.targetType === 'student' && a.targetId === userProfile.uid)
+                );
+            }
+
+            // Sort on client-side to avoid complex indexes
+            results.sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
+            setAssignments(results);
+            setError(null);
+            setIsLoading(false);
+        }, (err) => {
+            console.error("Error fetching assignments: ", err);
+            setError(err);
+            setIsLoading(false);
+        });
+        unsubscribes.push(unsubAssignments);
+    }
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [firestore, userProfile, loadingProfile, filterGroup, filterStudent]);
+
+
   const handleClearFilters = () => {
     setFilterGroup('');
     setFilterStudent('');
@@ -195,16 +225,6 @@ export default function AssignmentsPageContent() {
     );
   }
 
-  if (!userProfile) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error de Perfil de Usuario</AlertTitle>
-        <AlertDescription>No se pudo cargar el perfil del usuario. Por favor, recarga la página.</AlertDescription>
-      </Alert>
-    );
-  }
-  
   if (error) {
     return (
       <Alert variant="destructive">
@@ -231,8 +251,8 @@ export default function AssignmentsPageContent() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="grid gap-2">
-          <h1 className="text-2xl font-bold">{userProfile.role === 'STUDENT' ? 'Mis Asignaciones' : 'Gestión de Asignaciones'}</h1>
-          <p className="text-muted-foreground">{userProfile.role === 'STUDENT' ? 'Completa tus desafíos antes de la fecha límite.' : 'Gestiona las asignaciones de tus estudiantes.'}</p>
+          <h1 className="text-2xl font-bold">{userProfile?.role === 'STUDENT' ? 'Mis Asignaciones' : 'Gestión de Asignaciones'}</h1>
+          <p className="text-muted-foreground">{userProfile?.role === 'STUDENT' ? 'Completa tus desafíos antes de la fecha límite.' : 'Gestiona las asignaciones de tus estudiantes.'}</p>
         </div>
         {canCreate && (
           <Button className="w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
@@ -251,25 +271,21 @@ export default function AssignmentsPageContent() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                     <Label htmlFor="filter-group">Filtrar por Grupo</Label>
-                    {loadingGroups ? <Skeleton className="h-10 w-full" /> : (
-                      <Select value={filterGroup} onValueChange={(value) => { setFilterGroup(value); setFilterStudent(''); }}>
-                          <SelectTrigger id="filter-group"><SelectValue placeholder="Todos los grupos" /></SelectTrigger>
-                          <SelectContent>
-                              {groups?.map(group => <SelectItem key={group.id} value={group.id}>{(group as Group).name} - {formatSchedule((group as Group).schedule)}</SelectItem>)}
-                          </SelectContent>
-                      </Select>
-                    )}
+                    <Select value={filterGroup} onValueChange={(value) => { setFilterGroup(value); setFilterStudent(''); }}>
+                        <SelectTrigger id="filter-group"><SelectValue placeholder="Todos los grupos" /></SelectTrigger>
+                        <SelectContent>
+                            {groups?.map(group => <SelectItem key={group.id} value={group.id}>{(group as Group).name} - {formatSchedule((group as Group).schedule)}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </div>
                  <div className="grid gap-2">
                     <Label htmlFor="filter-student">Filtrar por Estudiante</Label>
-                    {loadingStudents ? <Skeleton className="h-10 w-full" /> : (
-                      <Select value={filterStudent} onValueChange={(value) => { setFilterStudent(value); setFilterGroup(''); }}>
-                          <SelectTrigger id="filter-student"><SelectValue placeholder="Todos los estudiantes" /></SelectTrigger>
-                          <SelectContent>
-                              {students?.map(student => <SelectItem key={student.id} value={student.id}>{(student as Student).displayName}</SelectItem>)}
-                          </SelectContent>
-                      </Select>
-                    )}
+                    <Select value={filterStudent} onValueChange={(value) => { setFilterStudent(value); setFilterGroup(''); }}>
+                        <SelectTrigger id="filter-student"><SelectValue placeholder="Todos los estudiantes" /></SelectTrigger>
+                        <SelectContent>
+                            {students?.map(student => <SelectItem key={student.id} value={student.id}>{(student as Student).displayName}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </div>
                 <div className="flex items-end">
                   <Button variant="outline" onClick={handleClearFilters} className="w-full">Limpiar Filtros</Button>
@@ -330,7 +346,7 @@ export default function AssignmentsPageContent() {
                     </div>
                   </div>
                   <Button onClick={() => router.push(`/session/${assignment.challengeId}`)} variant={overdue ? 'destructive' : 'default'} className="w-full mt-4 sm:w-auto sm:mt-0">
-                    {userProfile.role === 'STUDENT' ? 'Comenzar Desafío' : 'Ver Detalles'}
+                    {userProfile?.role === 'STUDENT' ? 'Comenzar Desafío' : 'Ver Detalles'}
                   </Button>
                 </div>
               </div>
@@ -345,3 +361,5 @@ export default function AssignmentsPageContent() {
     </div>
   );
 }
+
+    
