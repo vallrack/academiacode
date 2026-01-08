@@ -324,6 +324,15 @@ export default function EditChallengePage() {
                         <SelectItem value="java">Java</SelectItem>
                         <SelectItem value="sql">SQL</SelectItem>
                         <SelectItem value="mysql">MySQL</SelectItem>
+                        <SelectItem value="csharp">C#</SelectItem>
+                        <SelectItem value="cpp">C++</SelectItem>
+                        <SelectItem value="typescript">TypeScript</SelectItem>
+                        <SelectItem value="go">Go</SelectItem>
+                        <SelectItem value="rust">Rust</SelectItem>
+                        <SelectItem value="swift">Swift</SelectItem>
+                        <SelectItem value="kotlin">Kotlin</SelectItem>
+                        <SelectItem value="php">PHP</SelectItem>
+                        <SelectItem value="ruby">Ruby</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -416,6 +425,8 @@ export default function EditChallengePage() {
     </div>
   );
 }
+
+    
 
     
 
