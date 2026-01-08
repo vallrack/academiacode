@@ -1,11 +1,10 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, DocumentData, Query } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, DocumentData, Query, onSnapshot } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
 import { createUser } from '@/ai/create-user-flow';
 
@@ -58,12 +56,35 @@ export default function NewUserPage() {
   const { toast } = useToast();
   const { user } = useUser();
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore]);
+  const [groups, setGroups] = useState<DocumentData[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
 
-  const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
+  useEffect(() => {
+    if (!firestore) return;
+
+    setLoadingGroups(true);
+    const groupsQuery = collection(firestore, "groups") as Query<Group & DocumentData>;
+    
+    const unsubscribe = onSnapshot(groupsQuery, 
+        (snapshot) => {
+            const groupsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setGroups(groupsData);
+            setLoadingGroups(false);
+        },
+        (error) => {
+            console.error("Error fetching groups: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al Cargar Grupos",
+                description: "No se pudieron cargar los grupos para la selección.",
+            });
+            setLoadingGroups(false);
+        }
+    );
+
+    return () => unsubscribe();
+  }, [firestore, toast]);
+
 
   const formatSchedule = (schedule: GroupSchedule | string) => {
     if (typeof schedule === 'string') {
