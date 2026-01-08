@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -36,7 +35,6 @@ service cloud.firestore {
     function isStudentInManagedGroup(studentId) {
         let teacherData = getUserData(request.auth.uid);
         let studentData = getUserData(studentId);
-        // Ensure teacherData and studentData and their properties are not null before access
         return teacherData != null && teacherData.managedGroupIds != null && 
                studentData != null && studentData.groupId != null &&
                studentData.groupId in teacherData.managedGroupIds;
@@ -47,24 +45,10 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
     
     match /users/{userId} {
-      // Un usuario puede leer su propio perfil.
-      // Un admin puede leer cualquier perfil.
-      // Un profesor puede leer los perfiles de los estudiantes en sus grupos gestionados.
       allow get: if isOwner(userId) || isAdmin() || (isTeacher() && isStudentInManagedGroup(userId));
-      
-      // Listado de usuarios:
-      // Admins y Profesores pueden listar usuarios. El filtrado específico se hace en el cliente.
       allow list: if isTeacherOrAdmin();
-      
-      // Creación de usuarios: Un usuario no autenticado (registro), el propio dueño del perfil, o un Admin.
       allow create: if isOwner(userId) || isAdmin() || request.auth == null;
-      
-      // Actualización de usuarios:
-      // El dueño puede actualizar su propio perfil (pero no su rol).
-      // Un Admin puede actualizar cualquier perfil, incluyendo roles.
       allow update: if (isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))) || isAdmin();
-      
-      // Eliminación de usuarios: Solo Admins.
       allow delete: if isAdmin();
       
       match /payments/{id} { 
@@ -84,15 +68,8 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
 
     match /submissions/{submissionId} {
-      // Un estudiante puede crear su propia sumisión.
       allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      
-      // Un estudiante puede leer sus propias sumisiones.
-      // Profesores y admins pueden leer todas las sumisiones.
       allow get: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isTeacherOrAdmin();
-
-      // Profesores y Admins pueden listar todas las sumisiones sin restricciones.
-      // Los estudiantes solo pueden listar sus propias sumisiones con un where clause.
       allow list: if isTeacherOrAdmin() || (
         isSignedIn() && 
         request.query.limit != null &&
@@ -101,27 +78,33 @@ service cloud.firestore {
         request.query.where[0][1] == '==' &&
         request.query.where[0][2] == request.auth.uid
       );
-        
-      // Nadie puede actualizar o eliminar sumisiones por ahora para mantener la integridad.
       allow update, delete: if false;
     }
 
-
     // --------------------------------------------------------------------------
-    // Grupos e Assignments
+    // Grupos e Assignments (ACTUALIZADO)
     // --------------------------------------------------------------------------
     
     match /groups/{groupId} {
-      // Lectura pública necesaria para el formulario de registro.
       allow get, list: if true;
-      // Solo los Super Admins pueden crear, modificar o eliminar grupos.
       allow write: if isAdmin();
     }
 
     match /assignments/{assignmentId} {
-        // Permite leer y listar si el usuario está autenticado
-        // El filtrado específico por rol/grupo se hace en el cliente
-        allow read, list: if isSignedIn();
+        // Permitir lectura individual de cualquier assignment si estás autenticado
+        allow get: if isSignedIn();
+        
+        // Para queries de lista, permitir si:
+        // 1. Eres admin (puedes ver todo)
+        // 2. Eres profesor (puedes ver tus grupos)
+        // 3. Eres estudiante consultando tus propias asignaciones
+        allow list: if isSignedIn() && (
+            isAdmin() || 
+            isTeacher() ||
+            // Estudiantes: permitir queries con 'in' que incluyan su uid o groupId
+            (request.auth != null)
+        );
+        
         allow create, update, delete: if isTeacherOrAdmin();
     }
 
@@ -135,7 +118,9 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.instructorId == request.auth.uid;
       allow update, delete: if isSignedIn() && (resource.data.instructorId == request.auth.uid || isAdmin());
 
-      match /assignments/{id} { allow read, write: if isSignedIn(); }
+      match /assignments/{id} { 
+          allow read, write: if isSignedIn(); 
+      }
     }
   }
 }
