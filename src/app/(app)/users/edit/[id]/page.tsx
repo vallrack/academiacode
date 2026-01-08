@@ -54,9 +54,9 @@ export default function EditUserPage() {
   const isSuperAdmin = currentUser?.uid && true; // Simple check if user is logged in
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser) return null;
+    if (!firestore) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore, currentUser]);
+  }, [firestore]);
 
   const { data: allGroups, loading: loadingGroups } = useCollection(groupsQuery);
 

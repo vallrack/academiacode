@@ -67,7 +67,7 @@ export default function UsersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const usersQuery = useMemoFirebase(() => {
-    // Solo ejecuta la query si el usuario es SUPER_ADMIN
+    // Solo ejecuta la query si el usuario es SUPER_ADMIN y firestore está listo
     if (!firestore || userProfile?.role !== 'SUPER_ADMIN') return null;
     return collection(firestore, "users") as Query<User & DocumentData>;
   }, [firestore, userProfile]);

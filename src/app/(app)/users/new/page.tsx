@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -58,9 +59,9 @@ export default function NewUserPage() {
   const { user } = useUser();
 
   const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore, user]);
+  }, [firestore]);
 
   const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
 
