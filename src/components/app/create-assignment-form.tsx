@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useFirestore, useMemoFirebase } from "@/firebase";
+import React, { useState, useEffect } from 'react';
+import { useFirestore } from "@/firebase";
 import { useUser } from '@/firebase/auth/use-user';
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, addDoc, query, where, type DocumentData, Timestamp } from "firebase/firestore";
+import { collection, addDoc, query, where, type DocumentData, Timestamp, onSnapshot } from "firebase/firestore";
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,11 +19,18 @@ interface CreateAssignmentFormProps {
   onSuccess?: () => void;
 }
 
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
 export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssignmentFormProps) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { userProfile } = useUserProfile();
   const { toast } = useToast();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetType, setTargetType] = useState<'group' | 'student'>('group');
   
@@ -34,47 +40,82 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     dueDate: '',
   });
 
+  const [groups, setGroups] = useState<DocumentData[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [challenges, setChallenges] = useState<DocumentData[] | null>(null);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [students, setStudents] = useState<DocumentData[] | null>(null);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+
   const isTeacher = userProfile?.role === 'TEACHER';
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
   const teacherManagedGroups = userProfile?.managedGroupIds || [];
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    if (isTeacher && teacherManagedGroups.length > 0) {
-      return query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+  useEffect(() => {
+    if (!firestore) {
+      setLoadingChallenges(false);
+      setLoadingGroups(false);
+      setLoadingStudents(false);
+      return;
     }
+    
+    // Fetch Challenges
+    const challengesQuery = collection(firestore, 'challenges');
+    const unsubChallenges = onSnapshot(challengesQuery, (snapshot) => {
+      setChallenges(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingChallenges(false);
+    }, () => setLoadingChallenges(false));
+
+    // Fetch Groups
+    let groupsQuery;
     if (isSuperAdmin) {
-      return collection(firestore, 'groups');
+      groupsQuery = query(collection(firestore, 'groups'));
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+      groupsQuery = query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+    } else {
+      setLoadingGroups(false);
+      setGroups([]);
     }
-    return null;
-  }, [firestore, isTeacher, isSuperAdmin, teacherManagedGroups]);
 
-  const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
-
-  const challengesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'challenges');
-  }, [firestore]);
-
-  const { data: challenges, isLoading: loadingChallenges } = useCollection<DocumentData>(challengesQuery);
-
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || targetType !== 'student') return null;
-    
-    let q = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-    
-    if (isTeacher && teacherManagedGroups.length > 0) {
-      q = query(q, where('groupId', 'in', teacherManagedGroups));
-    } else if (isTeacher) {
-      // Teacher with no groups can see no students
-      return null;
+    let unsubGroups = () => {};
+    if (groupsQuery) {
+      unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
+        setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoadingGroups(false);
+      }, () => setLoadingGroups(false));
     }
-    // SuperAdmin sees all students, so no extra filter needed
-    
-    return q;
-  }, [firestore, targetType, isTeacher, teacherManagedGroups]);
 
-  const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
+    return () => {
+      unsubChallenges();
+      unsubGroups();
+    };
+  }, [firestore, isSuperAdmin, isTeacher, teacherManagedGroups]);
+
+  useEffect(() => {
+    if (!firestore || targetType !== 'student') {
+        setLoadingStudents(false);
+        return;
+    }
+    
+    setLoadingStudents(true);
+    let studentsQuery;
+    if(isSuperAdmin) {
+        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+    } else {
+        setLoadingStudents(false);
+        setStudents([]);
+        return;
+    }
+    
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+        setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoadingStudents(false);
+    }, () => setLoadingStudents(false));
+    
+    return () => unsubStudents();
+  }, [firestore, targetType, isSuperAdmin, isTeacher, teacherManagedGroups]);
 
   const handleSubmit = async () => {
     if (!firestore || !user) return;
@@ -119,6 +160,18 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
       setIsSubmitting(false);
     }
   };
+  
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
+
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in-0">
@@ -173,7 +226,7 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
                     <Select value={formData.targetId} onValueChange={(value) => setFormData({ ...formData, targetId: value })}>
                         <SelectTrigger id="group-select"><SelectValue placeholder="Selecciona un grupo" /></SelectTrigger>
                         <SelectContent>
-                            {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>)}
+                            {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name} - {formatSchedule(group.schedule)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                  )}
