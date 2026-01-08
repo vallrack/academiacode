@@ -6,57 +6,58 @@ import { ArrowUpRight, BookCopy, Users, Layers, UserCog, ClipboardList } from 'l
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, or, limit, orderBy } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, or, limit, orderBy, onSnapshot } from 'firebase/firestore';
 import type { DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '../ui/badge';
 import { useRouter } from 'next/navigation';
 import { RealTimeUsers } from './real-time-users';
+import { useState, useEffect } from 'react';
 
 export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData }) {
   const firestore = useFirestore();
   const router = useRouter();
-
-  const challengesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'challenges');
-  }, [firestore]);
-  const { data: challenges, loading: loadingChallenges } = useCollection(challengesQuery);
-
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-  }, [firestore]);
-  const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
   
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'groups');
-  }, [firestore]);
-  const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
-  
-  const staffQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-        collection(firestore, 'users'), 
-        or(
-            where('role', '==', 'TEACHER'),
-            where('role', '==', 'SUPER_ADMIN')
-        )
-    );
-  }, [firestore]);
-  const { data: staff, loading: loadingStaff } = useCollection(staffQuery);
+  const [stats, setStats] = useState({ challenges: 0, students: 0, groups: 0, staff: 0, assignments: 0 });
+  const [loading, setLoading] = useState(true);
+  const [recentAssignments, setRecentAssignments] = useState<DocumentData[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
 
-  const recentAssignmentsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'assignments'), orderBy('assignedAt', 'desc'), limit(5));
+  useEffect(() => {
+    if (!firestore) {
+        setLoading(false);
+        setLoadingAssignments(false);
+        return;
+    }
+
+    const queries = {
+      challenges: collection(firestore, 'challenges'),
+      students: query(collection(firestore, 'users'), where('role', '==', 'STUDENT')),
+      groups: collection(firestore, 'groups'),
+      staff: query(collection(firestore, 'users'), or(where('role', '==', 'TEACHER'), where('role', '==', 'SUPER_ADMIN'))),
+      assignments: query(collection(firestore, 'assignments'), orderBy('assignedAt', 'desc'), limit(5)),
+    };
+
+    const unsubscribes = Object.entries(queries).map(([key, q]) => {
+      return onSnapshot(q, (snapshot) => {
+        if (key === 'assignments') {
+          setRecentAssignments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          setLoadingAssignments(false);
+        }
+        setStats(prev => ({ ...prev, [key]: snapshot.size }));
+        setLoading(false); // Consider loading finished when first data comes in
+      }, (error) => {
+        console.error(`Error fetching ${key}:`, error);
+        setLoading(false);
+        setLoadingAssignments(false);
+      });
+    });
+
+    return () => unsubscribes.forEach(unsub => unsub());
+
   }, [firestore]);
-  const { data: recentAssignments, loading: loadingAssignments } = useCollection(recentAssignmentsQuery);
 
-
-  const loading = loadingChallenges || loadingStudents || loadingGroups || loadingStaff || loadingAssignments;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -68,7 +69,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{recentAssignments?.length ?? 0}</div>}
+                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{stats.assignments}</div>}
                 <p className="text-xs text-muted-foreground">Total de asignaciones creadas</p>
               </CardContent>
             </Card>
@@ -78,7 +79,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 <BookCopy className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                 {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{challenges?.length ?? 0}</div>}
+                 {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{stats.challenges}</div>}
                 <p className="text-xs text-muted-foreground">Desafíos en la biblioteca</p>
               </CardContent>
             </Card>
@@ -88,7 +89,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{students?.length ?? 0}</div>}
+                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{stats.students}</div>}
                 <p className="text-xs text-muted-foreground">Total de estudiantes en la plataforma</p>
               </CardContent>
             </Card>
@@ -98,7 +99,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 <Layers className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{groups?.length ?? 0}</div>}
+                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{stats.groups}</div>}
                 <p className="text-xs text-muted-foreground">Total de grupos en la plataforma</p>
               </CardContent>
             </Card>
@@ -108,7 +109,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 <UserCog className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{staff?.length ?? 0}</div>}
+                {loading ? <Skeleton className="h-8 w-1/4" /> : <div className="text-2xl font-bold">{stats.staff}</div>}
                 <p className="text-xs text-muted-foreground">Total de personal administrativo</p>
               </CardContent>
             </Card>
@@ -127,7 +128,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                 </Button>
             </CardHeader>
             <CardContent>
-                {loading ? (
+                {loadingAssignments ? (
                 <div className="space-y-2">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />

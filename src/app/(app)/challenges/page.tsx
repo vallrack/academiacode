@@ -7,9 +7,8 @@ import { MoreHorizontal, PlusCircle, Play, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, updateDoc, deleteDoc, DocumentData, Query } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -34,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 
@@ -61,16 +60,41 @@ export default function ChallengesPage() {
     const { toast } = useToast();
     const router = useRouter();
 
+    const [challenges, setChallenges] = useState<Challenge[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [challengeToDelete, setChallengeToDelete] = useState<Challenge | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    
-    const challengesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return collection(firestore, "challenges") as Query<Challenge & DocumentData>;
-    }, [firestore]);
 
-    const { data: challenges, loading } = useCollection(challengesQuery);
+    useEffect(() => {
+        if (!firestore) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        const challengesQuery = collection(firestore, "challenges") as Query<Challenge & DocumentData>;
+        const unsubscribe = onSnapshot(challengesQuery, 
+            (snapshot) => {
+                const challengesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Challenge));
+                setChallenges(challengesData);
+                setLoading(false);
+            },
+            (error) => {
+                console.error("Error fetching challenges:", error);
+                setLoading(false);
+                toast({
+                    variant: "destructive",
+                    title: "Error al Cargar",
+                    description: "No se pudieron cargar los desafíos.",
+                });
+            }
+        );
+
+        return () => unsubscribe();
+    }, [firestore, toast]);
+    
 
     const hasChallenges = !loading && challenges && challenges.length > 0;
 

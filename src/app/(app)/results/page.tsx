@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, type DocumentData, getDocs } from 'firebase/firestore';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, type DocumentData, onSnapshot } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -53,74 +52,117 @@ export default function ResultsPage() {
   const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
+  
+  const [students, setStudents] = useState<DocumentData[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  const [studentsError, setStudentsError] = useState<Error | null>(null);
+  
+  const [submissions, setSubmissions] = useState<DocumentData[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
+  const [submissionsError, setSubmissionsError] = useState<Error | null>(null);
+
   const [managedStudentIds, setManagedStudentIds] = useState<string[] | null>(null);
 
   const isTeacher = userProfile?.role === 'TEACHER';
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
-  // Query para obtener los estudiantes que un profesor puede ver
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || (!isTeacher && !isSuperAdmin)) return null;
-
+  useEffect(() => {
+    if (!firestore || (!isTeacher && !isSuperAdmin)) {
+        setLoadingStudents(false);
+        return;
+    }
+    
+    setLoadingStudents(true);
+    let studentsQuery;
     const usersCollection = collection(firestore, 'users');
 
     if (isSuperAdmin) {
-      return query(usersCollection, where('role', '==', 'STUDENT'));
+      studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'));
+    } else if (isTeacher && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
+      studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
+    } else {
+      setLoadingStudents(false);
+      setStudents([]);
+      return;
     }
-    
-    // Teacher: Query students from managed groups
-    if (isTeacher && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
-      return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
-    }
-    
-    return null;
-  }, [firestore, userProfile, isTeacher, isSuperAdmin]);
-  const { data: students, isLoading: loadingStudents, error: studentsError } = useCollection<DocumentData>(studentsQuery);
 
-  // Effect to populate the list of student IDs a teacher manages
-  React.useEffect(() => {
-    if (isTeacher) {
-      if (students) {
-        setManagedStudentIds(students.map(s => s.id));
+    const unsubscribe = onSnapshot(studentsQuery, 
+      (snapshot) => {
+        const studentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setStudents(studentData);
+        setStudentsError(null);
+        setLoadingStudents(false);
+      },
+      (error) => {
+        setStudentsError(error);
+        setLoadingStudents(false);
       }
+    );
+
+    return () => unsubscribe();
+  }, [firestore, userProfile, isTeacher, isSuperAdmin]);
+
+
+  useEffect(() => {
+    if (isTeacher && students) {
+      setManagedStudentIds(students.map(s => s.id));
     }
   }, [students, isTeacher]);
 
 
-  // Query principal de sumisiones
-  const submissionsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+        setLoadingSubmissions(false);
+        return;
+    }
     
+    setLoadingSubmissions(true);
+    let submissionsQuery;
     const submissionsRef = collection(firestore, 'submissions');
 
     if (isSuperAdmin) {
-      if (selectedStudent === 'all') return query(submissionsRef);
-      return query(submissionsRef, where('studentId', '==', selectedStudent));
-    }
-
-    if (isTeacher) {
-      // If student IDs are still being fetched, don't query yet.
-      if (managedStudentIds === null) return null;
-      // If teacher has no students, query for a non-existent ID to return nothing.
-      if (managedStudentIds.length === 0) return query(submissionsRef, where('studentId', '==', 'no-students'));
-
+      if (selectedStudent === 'all') submissionsQuery = query(submissionsRef);
+      else submissionsQuery = query(submissionsRef, where('studentId', '==', selectedStudent));
+    } else if (isTeacher) {
+      if (managedStudentIds === null) return; 
+      if (managedStudentIds.length === 0) {
+        setSubmissions([]);
+        setLoadingSubmissions(false);
+        return;
+      }
       if (selectedStudent === 'all') {
-        return query(submissionsRef, where('studentId', 'in', managedStudentIds));
+        submissionsQuery = query(submissionsRef, where('studentId', 'in', managedStudentIds));
+      } else if (managedStudentIds.includes(selectedStudent)) {
+        submissionsQuery = query(submissionsRef, where('studentId', '==', selectedStudent));
+      } else {
+        setSubmissions([]);
+        setLoadingSubmissions(false);
+        return;
       }
-      // If a specific student is selected, ensure they are in the managed list before querying
-      if (managedStudentIds.includes(selectedStudent)) {
-        return query(submissionsRef, where('studentId', '==', selectedStudent));
-      }
-      // If selected student is not managed, return no results.
-      return query(submissionsRef, where('studentId', '==', 'not-a-managed-student'));
+    } else {
+      submissionsQuery = query(submissionsRef, where('studentId', '==', userProfile.uid));
     }
 
-    // El estudiante solo ve lo suyo
-    return query(submissionsRef, where('studentId', '==', userProfile.uid));
+    if (!submissionsQuery) {
+        setLoadingSubmissions(false);
+        return;
+    }
 
+    const unsubscribe = onSnapshot(submissionsQuery, 
+        (snapshot) => {
+            const submissionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setSubmissions(submissionData);
+            setSubmissionsError(null);
+            setLoadingSubmissions(false);
+        },
+        (error) => {
+            setSubmissionsError(error);
+            setLoadingSubmissions(false);
+        }
+    );
+
+    return () => unsubscribe();
   }, [firestore, userProfile, isSuperAdmin, isTeacher, selectedStudent, managedStudentIds]);
-
-  const { data: submissions, isLoading: loadingSubmissions, error: submissionsError } = useCollection<DocumentData>(submissionsQuery);
   
   const isLoading = loadingProfile || loadingSubmissions || (isTeacher && loadingStudents);
   const error = submissionsError || studentsError;

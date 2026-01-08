@@ -1,10 +1,9 @@
 
 "use client";
 
-import { useState } from "react";
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, doc, updateDoc, deleteDoc, DocumentData, Query } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { useFirestore } from "@/firebase";
+import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, onSnapshot } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -62,17 +61,41 @@ export default function UsersPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const usersQuery = useMemoFirebase(() => {
-    // Solo ejecuta la query si el usuario es SUPER_ADMIN y firestore está listo
-    if (!firestore || userProfile?.role !== 'SUPER_ADMIN') return null;
-    return collection(firestore, "users") as Query<User & DocumentData>;
-  }, [firestore, userProfile]);
+  useEffect(() => {
+    if (!firestore || userProfile?.role !== 'SUPER_ADMIN') {
+        setLoading(false);
+        return;
+    }
+    
+    setLoading(true);
+    const usersQuery = collection(firestore, "users") as Query<User & DocumentData>;
+    const unsubscribe = onSnapshot(usersQuery,
+        (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(usersData);
+            setLoading(false);
+        },
+        (error) => {
+            console.error("Error fetching users:", error);
+            setLoading(false);
+            toast({
+                variant: "destructive",
+                title: "Error al Cargar",
+                description: "No se pudieron cargar los usuarios.",
+            });
+        }
+    );
 
-  const { data: users, loading } = useCollection(usersQuery);
+    return () => unsubscribe();
+  }, [firestore, userProfile, toast]);
+
 
   const hasUsers = !loading && users && users.length > 0;
   

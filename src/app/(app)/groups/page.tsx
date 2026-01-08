@@ -13,9 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, deleteDoc, DocumentData, Query, query, where } from "firebase/firestore";
+import { useFirestore } from "@/firebase";
+import { collection, doc, deleteDoc, DocumentData, Query, query, where, onSnapshot } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -35,7 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/contexts/user-profile-context";
@@ -60,33 +59,60 @@ export default function GroupsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+        setLoading(false);
+        return;
+    }
     
+    setLoading(true);
+    let groupsQuery: Query | null = null;
     const groupsCollection = collection(firestore, "groups");
 
-    // Super admin sees all groups
     if (isSuperAdmin) {
-        return groupsCollection as Query<Group & DocumentData>;
+        groupsQuery = groupsCollection as Query<Group & DocumentData>;
+    } else if (userProfile.role === 'TEACHER' && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
+        groupsQuery = query(groupsCollection, where('__name__', 'in', userProfile.managedGroupIds));
+    } else {
+        setLoading(false);
+        setGroups([]);
+        return;
     }
 
-    // Teacher sees only managed groups
-    if (userProfile.role === 'TEACHER' && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
-        return query(groupsCollection, where('__name__', 'in', userProfile.managedGroupIds));
+    if (!groupsQuery) {
+        setLoading(false);
+        return;
     }
 
-    // Students or teachers with no groups see nothing (or you can return a query that yields no results)
-    return null;
+    const unsubscribe = onSnapshot(groupsQuery,
+        (snapshot) => {
+            const groupsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Group));
+            setGroups(groupsData);
+            setLoading(false);
+        },
+        (error) => {
+            console.error("Error fetching groups:", error);
+            setLoading(false);
+            toast({
+                variant: "destructive",
+                title: "Error al Cargar",
+                description: "No se pudieron cargar los grupos.",
+            });
+        }
+    );
 
-  }, [firestore, userProfile, isSuperAdmin]);
+    return () => unsubscribe();
+  }, [firestore, userProfile, isSuperAdmin, toast]);
 
-  const { data: groups, loading } = useCollection(groupsQuery);
 
   const hasGroups = !loading && groups && groups.length > 0;
 

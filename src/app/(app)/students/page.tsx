@@ -1,10 +1,9 @@
 
 'use client';
 
-import { useState } from "react";
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, where, query } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { useFirestore } from "@/firebase";
+import { collection, doc, updateDoc, deleteDoc, DocumentData, Query, where, query, onSnapshot } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,43 +59,69 @@ export default function StudentsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const [students, setStudents] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+        setLoading(false);
+        return;
+    }
 
+    setLoading(true);
+    let studentsQuery: Query | null = null;
     const usersRef = collection(firestore, "users");
 
-    // Super Admins can see all students
     if (isSuperAdmin) {
-        return query(usersRef, where("role", "==", "STUDENT"));
-    }
-
-    // Teachers can only see students from the groups they manage
-    if (userProfile.role === 'TEACHER') {
+        studentsQuery = query(usersRef, where("role", "==", "STUDENT"));
+    } else if (userProfile.role === 'TEACHER') {
         const managedGroups = userProfile.managedGroupIds;
-        // Only query if the teacher manages at least one group
         if (managedGroups && managedGroups.length > 0) {
-            return query(usersRef, where("role", "==", "STUDENT"), where("groupId", "in", managedGroups));
+            studentsQuery = query(usersRef, where("role", "==", "STUDENT"), where("groupId", "in", managedGroups));
+        } else {
+            setLoading(false);
+            setStudents([]);
+            return;
         }
-        // If teacher manages no groups, they see no students.
-        return null; 
+    } else {
+      setLoading(false);
+      return;
     }
-    
-    // Other roles can't see this page's content
-    return null;
 
-  }, [firestore, userProfile, isSuperAdmin]);
+    if (!studentsQuery) {
+        setLoading(false);
+        return;
+    }
 
-  const { data: students, loading } = useCollection(studentsQuery);
+    const unsubscribe = onSnapshot(studentsQuery,
+        (snapshot) => {
+            const studentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setStudents(studentsData);
+            setLoading(false);
+        },
+        (error) => {
+            console.error("Error fetching students:", error);
+            setLoading(false);
+            toast({
+                variant: "destructive",
+                title: "Error al Cargar",
+                description: "No se pudieron cargar los estudiantes.",
+            });
+        }
+    );
+
+    return () => unsubscribe();
+  }, [firestore, userProfile, isSuperAdmin, toast]);
+
 
   const hasStudents = !loading && students && students.length > 0;
   
-  // This check is for roles that should not see this page at all
   if (userProfile?.role !== 'TEACHER' && userProfile?.role !== 'SUPER_ADMIN') {
     return (
       <Card>
@@ -110,7 +135,6 @@ export default function StudentsPage() {
     );
   }
   
-  // This check is for teachers who haven't been assigned any groups yet
   const teacherHasNoGroups = userProfile?.role === 'TEACHER' && (!userProfile.managedGroupIds || userProfile.managedGroupIds.length === 0);
 
 

@@ -1,14 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where, or, type DocumentData, type Query, type WhereFilterOp } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, or, type DocumentData, onSnapshot } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
 import { AssignmentCard } from './assignment-card';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Assignment = {
     id: string;
@@ -21,18 +19,37 @@ type Assignment = {
 // New component to display group mates
 function GroupMatesComponent({ userProfile }: { userProfile: DocumentData }) {
     const firestore = useFirestore();
+    const [groupMates, setGroupMates] = useState<DocumentData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
 
-    const groupMatesQuery = useMemoFirebase(() => {
-        // Solo ejecutar la query si el usuario es estudiante y tiene un groupId
-        if (!firestore || !userProfile?.groupId || userProfile.role !== 'STUDENT') return null;
-        
-        return query(
+    useEffect(() => {
+        if (!firestore || !userProfile?.groupId || userProfile.role !== 'STUDENT') {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        const groupMatesQuery = query(
             collection(firestore, 'users'),
             where('groupId', '==', userProfile.groupId)
         );
-    }, [firestore, userProfile?.groupId, userProfile?.role]);
 
-    const { data: groupMates, isLoading, error } = useCollection<DocumentData>(groupMatesQuery);
+        const unsubscribe = onSnapshot(groupMatesQuery, 
+            (snapshot) => {
+                const matesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setGroupMates(matesData);
+                setError(null);
+                setIsLoading(false);
+            },
+            (err) => {
+                console.error("Error fetching group mates: ", err);
+                setError(err);
+                setIsLoading(false);
+            }
+        );
+        return () => unsubscribe();
+    }, [firestore, userProfile?.groupId, userProfile.role]);
     
     if (isLoading) {
         return <Skeleton className="h-24 w-full" />;
@@ -43,7 +60,6 @@ function GroupMatesComponent({ userProfile }: { userProfile: DocumentData }) {
         return null; // Don't render the card if there's an error
     }
     
-    // Filter out the current user from the list
     const otherMates = groupMates?.filter(mate => mate.id !== userProfile.uid);
 
     return (
@@ -77,28 +93,42 @@ function GroupMatesComponent({ userProfile }: { userProfile: DocumentData }) {
 
 export function StudentDashboard({ userProfile }: { userProfile: DocumentData }) {
     const firestore = useFirestore();
+    const [assignments, setAssignments] = useState<Assignment[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const assignmentsQuery = useMemoFirebase(() => {
-        if (!firestore || !userProfile?.uid) return null;
-        
-        const conditions = [];
-        if (userProfile.groupId) {
-            conditions.push(where('targetId', '==', userProfile.groupId), where('targetType', '==', 'group'));
+    useEffect(() => {
+        if (!firestore || !userProfile?.uid) {
+            setLoading(false);
+            return;
         }
-        conditions.push(where('targetId', '==', userProfile.uid), where('targetType', '==', 'student'));
 
-
-        return query(
+        setLoading(true);
+        const studentTargets = [userProfile.uid];
+        if (userProfile.groupId) studentTargets.push(userProfile.groupId);
+        
+        const assignmentsQuery = query(
             collection(firestore, "assignments"),
-            or(
-                where('targetId', '==', userProfile.uid),
-                where('targetId', '==', userProfile.groupId || '______') // use a non-existent id if no groupId
-            )
-        ) as Query<Assignment & DocumentData>;
+            where('targetId', 'in', studentTargets)
+        );
 
+        const unsubscribe = onSnapshot(assignmentsQuery, 
+            (snapshot) => {
+                const assignmentsData = snapshot.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() } as Assignment))
+                    .filter(a => (a.targetType === 'student' && a.targetId === userProfile.uid) || (a.targetType === 'group' && a.targetId === userProfile.groupId));
+                
+                setAssignments(assignmentsData);
+                setLoading(false);
+            },
+            (error) => {
+                console.error("Error fetching assignments for student:", error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
     }, [firestore, userProfile?.uid, userProfile?.groupId]);
 
-    const { data: assignments, loading } = useCollection(assignmentsQuery);
 
     const hasAssignments = !loading && assignments && assignments.length > 0;
 

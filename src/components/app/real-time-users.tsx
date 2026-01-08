@@ -1,10 +1,8 @@
 
 'use client';
 
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { collection, query, where } from 'firebase/firestore';
-import type { DocumentData } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { collection, query, where, onSnapshot, type DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Wifi, Signal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useState, useEffect } from 'react';
 
 const roleMap: Record<string, string> = {
   STUDENT: "Estudiante",
@@ -22,13 +21,36 @@ const roleMap: Record<string, string> = {
 
 export function RealTimeUsers() {
   const firestore = useFirestore();
+  const [onlineUsers, setOnlineUsers] = useState<DocumentData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const onlineUsersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('status', '==', 'online'));
+  useEffect(() => {
+    if (!firestore) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    const onlineUsersQuery = query(collection(firestore, 'users'), where('status', '==', 'online'));
+
+    const unsubscribe = onSnapshot(onlineUsersQuery, 
+        (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setOnlineUsers(usersData);
+            setError(null);
+            setIsLoading(false);
+        },
+        (err) => {
+            console.error("Error fetching real-time users:", err);
+            setError(err);
+            setIsLoading(false);
+        }
+    );
+
+    return () => unsubscribe();
   }, [firestore]);
 
-  const { data: onlineUsers, isLoading, error } = useCollection<DocumentData>(onlineUsersQuery);
 
   if (isLoading) {
     return (
