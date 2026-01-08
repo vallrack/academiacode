@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -60,7 +61,10 @@ export default function NewUserPage() {
   const [loadingGroups, setLoadingGroups] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    if (!firestore) {
+      setLoadingGroups(false);
+      return;
+    }
 
     setLoadingGroups(true);
     const groupsQuery = collection(firestore, "groups") as Query<Group & DocumentData>;
@@ -234,7 +238,7 @@ export default function NewUserPage() {
                             {groups && groups.length > 0 ? (
                                 groups.map(group => (
                                     <SelectItem key={group.id} value={group.id}>
-                                        {group.name} - {formatSchedule(group.schedule)}
+                                        {group.name} - {formatSchedule((group as Group).schedule)}
                                     </SelectItem>
                                 ))
                             ) : (
