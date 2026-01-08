@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -44,8 +43,9 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
         if (key === 'assignments') {
           setRecentAssignments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setLoadingAssignments(false);
+        } else {
+            setStats(prev => ({ ...prev, [key]: snapshot.size }));
         }
-        setStats(prev => ({ ...prev, [key]: snapshot.size }));
         setLoading(false); // Consider loading finished when first data comes in
       }, (error) => {
         console.error(`Error fetching ${key}:`, error);
@@ -138,7 +138,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>ID de Asignación</TableHead>
+                                <TableHead>Desafío</TableHead>
                                 <TableHead>Tipo</TableHead>
                                 <TableHead>ID del Objetivo</TableHead>
                                 <TableHead className="text-right">Acción</TableHead>
@@ -147,7 +147,7 @@ export function SuperAdminDashboard({ userProfile }: { userProfile: DocumentData
                         <TableBody>
                         {recentAssignments.map((assignment: DocumentData) => (
                             <TableRow key={assignment.id}>
-                                <TableCell className="font-mono text-xs">{assignment.id}</TableCell>
+                                <TableCell className="font-medium">{assignment.challengeTitle || assignment.challengeId}</TableCell>
                                 <TableCell>
                                 <Badge variant={assignment.targetType === 'group' ? 'default' : 'secondary'}>
                                     {assignment.targetType === 'group' ? 'Grupo' : 'Estudiante'}
