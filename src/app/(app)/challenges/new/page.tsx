@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Switch } from "@/components/ui/switch";
@@ -33,31 +33,51 @@ import { FirestorePermissionError } from "@/firebase/errors";
 
 export const dynamic = 'force-dynamic';
 
-export default function NewChallengePage() {
-  const [title, setTitle] = useState("Sumar dos números en JavaScript");
-  const [language, setLanguage] = useState("javascript");
-  const [category, setCategory] = useState("Semana 1");
-  const [description, setDescription] = useState("Crea una función llamada 'suma' que acepte dos números como parámetros y devuelva su suma.");
-  const [testCases, setTestCases] = useState(`[
-  {
-    "input": [2, 2],
-    "expectedOutput": 4
+const challengeTemplates = {
+  javascript: {
+    title: "Sumar dos números en JavaScript",
+    description: "Crea una función llamada 'suma' que acepte dos números como parámetros y devuelva su suma.",
+    testCases: `[\n  {\n    "input": [2, 2],\n    "expectedOutput": 4\n  },\n  {\n    "input": [5, -3],\n    "expectedOutput": 2\n  },\n  {\n    "input": [100, 200],\n    "expectedOutput": 300\n  }\n]`
   },
-  {
-    "input": [5, -3],
-    "expectedOutput": 2
+  python: {
+    title: "Concatenar dos strings en Python",
+    description: "Crea una función llamada 'concatenar' que acepte dos strings y devuelva una única string con ambos.",
+    testCases: `[\n  {\n    "input": ["Hola, ", "Mundo"],\n    "expectedOutput": "Hola, Mundo"\n  },\n  {\n    "input": ["Python ", "es genial"],\n    "expectedOutput": "Python es genial"\n  }\n]`
   },
-  {
-    "input": [100, 200],
-    "expectedOutput": 300
+  sql: {
+    title: "Seleccionar todos los usuarios",
+    description: "Escribe una consulta SQL para seleccionar todos los registros de una tabla llamada 'usuarios'.",
+    testCases: `[\n  {\n    "input": "SELECT * FROM usuarios;",\n    "expectedOutput": {\n      "rowCount": 3\n    }\n  }\n]`
+  },
+  mysql: {
+    title: "Crear una tabla en MySQL",
+    description: "Escribe una consulta DDL para crear una tabla llamada 'productos' con las columnas 'id' (INT, PK), 'nombre' (VARCHAR(100)) y 'precio' (DECIMAL(10, 2)).",
+    testCases: `[\n  {\n    "input": "CREATE TABLE productos (id INT PRIMARY KEY, nombre VARCHAR(100), precio DECIMAL(10, 2));",\n    "expectedOutput": {\n      "schema_created": true\n    }\n  }\n]`
   }
-]`);
+};
+
+type Language = keyof typeof challengeTemplates;
+
+export default function NewChallengePage() {
+  const [language, setLanguage] = useState<Language>("javascript");
+  const [title, setTitle] = useState(challengeTemplates.javascript.title);
+  const [category, setCategory] = useState("Semana 1");
+  const [description, setDescription] = useState(challengeTemplates.javascript.description);
+  const [testCases, setTestCases] = useState(challengeTemplates.javascript.testCases);
   const [allowInteractive, setAllowInteractive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
+
+  useEffect(() => {
+    const template = challengeTemplates[language as Language] || challengeTemplates.javascript;
+    setTitle(template.title);
+    setDescription(template.description);
+    setTestCases(template.testCases);
+  }, [language]);
+
 
   const handleSave = async () => {
     if (!title || !description || !language || !category) {
@@ -178,7 +198,7 @@ export default function NewChallengePage() {
               </div>
               <div className="grid gap-3">
                 <Label htmlFor="language">Lenguaje</Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
                   <SelectTrigger id="language" aria-label="Selecciona un lenguaje">
                     <SelectValue placeholder="Selecciona un lenguaje" />
                   </SelectTrigger>
