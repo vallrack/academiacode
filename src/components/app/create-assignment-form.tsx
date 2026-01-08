@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFirestore } from "@/firebase";
 import { useUser } from '@/firebase/auth/use-user';
-import { collection, addDoc, query, where, type DocumentData, Timestamp, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, query, where, type DocumentData, Timestamp, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -141,7 +141,7 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
         targetId: formData.targetId,
         targetType: targetType,
         assignedBy: user.uid,
-        assignedAt: Timestamp.now(),
+        assignedAt: serverTimestamp(),
         dueDate: formData.dueDate ? Timestamp.fromDate(new Date(formData.dueDate)) : null,
       };
 
