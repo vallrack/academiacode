@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createUser } from '@/ai/create-user-flow';
-import { collection, type DocumentData, type Query } from 'firebase/firestore';
-import { useAuth, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, type DocumentData, type Query, onSnapshot } from 'firebase/firestore';
+import { useAuth, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/app/logo';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { cn } from '@/lib/utils';
@@ -48,12 +47,37 @@ export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "groups") as Query<Group & DocumentData>;
-  }, [firestore]);
+  const [groups, setGroups] = useState<DocumentData[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
 
-  const { data: groups, isLoading: loadingGroups } = useCollection(groupsQuery);
+  useEffect(() => {
+    if (!firestore) {
+      setLoadingGroups(false);
+      return;
+    }
+
+    setLoadingGroups(true);
+    const groupsQuery = collection(firestore, "groups");
+    
+    const unsubscribe = onSnapshot(groupsQuery, 
+        (snapshot) => {
+            const groupsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setGroups(groupsData);
+            setLoadingGroups(false);
+        },
+        (error) => {
+            console.error("Error fetching groups: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al Cargar Grupos",
+                description: "No se pudieron cargar los grupos para la selección.",
+            });
+            setLoadingGroups(false);
+        }
+    );
+
+    return () => unsubscribe();
+  }, [firestore, toast]);
 
   const formatSchedule = (schedule: GroupSchedule | string) => {
     if (typeof schedule === 'string') {
@@ -205,7 +229,7 @@ export default function RegisterPage() {
                           {groups && groups.length > 0 ? (
                               groups.map(group => (
                                   <SelectItem key={group.id} value={group.id}>
-                                      {group.name} - {formatSchedule(group.schedule)}
+                                      {(group as Group).name} - {formatSchedule((group as Group).schedule)}
                                   </SelectItem>
                               ))
                           ) : (
