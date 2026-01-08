@@ -117,6 +117,10 @@ export default function SessionIDEPage() {
       case 'java':
         template = `// ${challengeTitle}\n\nclass Solution {\n    public static void main(String[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
         break;
+      case 'sql':
+      case 'mysql':
+        template = `/*\n * ${challengeTitle}\n * \n * Escribe tu consulta SQL aquí.\n * Por ejemplo: SELECT * FROM users;\n */\n\n`;
+        break;
       case 'csharp':
           template = `// ${challengeTitle}\n\nusing System;\n\npublic class Program {\n    public static void Main(string[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
           break;
@@ -457,5 +461,7 @@ export default function SessionIDEPage() {
     </div>
   );
 }
+
+    
 
     

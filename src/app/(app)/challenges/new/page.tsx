@@ -186,6 +186,8 @@ export default function NewChallengePage() {
                     <SelectItem value="javascript">JavaScript</SelectItem>
                     <SelectItem value="python">Python</SelectItem>
                     <SelectItem value="java">Java</SelectItem>
+                    <SelectItem value="sql">SQL</SelectItem>
+                    <SelectItem value="mysql">MySQL</SelectItem>
                     <SelectItem value="csharp">C#</SelectItem>
                     <SelectItem value="cpp">C++</SelectItem>
                     <SelectItem value="typescript">TypeScript</SelectItem>
@@ -252,3 +254,5 @@ export default function NewChallengePage() {
     </div>
   );
 }
+
+    

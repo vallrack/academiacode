@@ -322,6 +322,8 @@ export default function EditChallengePage() {
                         <SelectItem value="javascript">JavaScript</SelectItem>
                         <SelectItem value="python">Python</SelectItem>
                         <SelectItem value="java">Java</SelectItem>
+                        <SelectItem value="sql">SQL</SelectItem>
+                        <SelectItem value="mysql">MySQL</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -414,5 +416,7 @@ export default function EditChallengePage() {
     </div>
   );
 }
+
+    
 
     
