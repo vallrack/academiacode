@@ -54,118 +54,111 @@ export default function ResultsPage() {
   const [selectedStudent, setSelectedStudent] = useState<string>('all');
   
   const [students, setStudents] = useState<DocumentData[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(true);
-  const [studentsError, setStudentsError] = useState<Error | null>(null);
-  
   const [submissions, setSubmissions] = useState<DocumentData[]>([]);
-  const [loadingSubmissions, setLoadingSubmissions] = useState(true);
-  const [submissionsError, setSubmissionsError] = useState<Error | null>(null);
 
-  const [managedStudentIds, setManagedStudentIds] = useState<string[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const isTeacher = userProfile?.role === 'TEACHER';
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
+  const teacherManagedGroups = userProfile?.managedGroupIds || [];
 
   useEffect(() => {
-    if (!firestore || (!isTeacher && !isSuperAdmin)) {
-        setLoadingStudents(false);
+    if (loadingProfile) {
+        setIsLoading(true);
         return;
     }
-    
-    setLoadingStudents(true);
-    let studentsQuery;
-    const usersCollection = collection(firestore, 'users');
-
-    if (isSuperAdmin) {
-      studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'));
-    } else if (isTeacher && userProfile.managedGroupIds && userProfile.managedGroupIds.length > 0) {
-      studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', userProfile.managedGroupIds));
-    } else {
-      setLoadingStudents(false);
-      setStudents([]);
-      return;
-    }
-
-    const unsubscribe = onSnapshot(studentsQuery, 
-      (snapshot) => {
-        const studentData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setStudents(studentData);
-        setStudentsError(null);
-        setLoadingStudents(false);
-      },
-      (error) => {
-        setStudentsError(error);
-        setLoadingStudents(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [firestore, userProfile, isTeacher, isSuperAdmin]);
-
-
-  useEffect(() => {
-    if (isTeacher && students) {
-      setManagedStudentIds(students.map(s => s.id));
-    }
-  }, [students, isTeacher]);
-
-
-  useEffect(() => {
-    if (!firestore || !userProfile) {
-        setLoadingSubmissions(false);
-        return;
-    }
-    
-    setLoadingSubmissions(true);
-    let submissionsQuery;
-    const submissionsRef = collection(firestore, 'submissions');
-
-    if (isSuperAdmin) {
-      if (selectedStudent === 'all') submissionsQuery = query(submissionsRef);
-      else submissionsQuery = query(submissionsRef, where('studentId', '==', selectedStudent));
-    } else if (isTeacher) {
-      if (managedStudentIds === null) return; 
-      if (managedStudentIds.length === 0) {
-        setSubmissions([]);
-        setLoadingSubmissions(false);
-        return;
-      }
-      if (selectedStudent === 'all') {
-        submissionsQuery = query(submissionsRef, where('studentId', 'in', managedStudentIds));
-      } else if (managedStudentIds.includes(selectedStudent)) {
-        submissionsQuery = query(submissionsRef, where('studentId', '==', selectedStudent));
-      } else {
-        setSubmissions([]);
-        setLoadingSubmissions(false);
-        return;
-      }
-    } else {
-      submissionsQuery = query(submissionsRef, where('studentId', '==', userProfile.uid));
-    }
-
-    if (!submissionsQuery) {
-        setLoadingSubmissions(false);
+    if (!userProfile || !firestore) {
+        setIsLoading(false);
+        setError(new Error("No se pudo cargar el perfil del usuario o la base de datos."));
         return;
     }
 
-    const unsubscribe = onSnapshot(submissionsQuery, 
-        (snapshot) => {
-            const submissionData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setSubmissions(submissionData);
-            setSubmissionsError(null);
-            setLoadingSubmissions(false);
-        },
-        (error) => {
-            setSubmissionsError(error);
-            setLoadingSubmissions(false);
+    const unsubscribes: (() => void)[] = [];
+    let dependenciesLoaded = 0;
+    const requiredDependencies = isTeacher || isSuperAdmin ? 1 : 0; // Students for filters
+
+    const checkAllDependenciesLoaded = () => {
+        dependenciesLoaded++;
+        if (dependenciesLoaded >= requiredDependencies) {
+            loadSubmissions();
         }
-    );
+    };
 
-    return () => unsubscribe();
-  }, [firestore, userProfile, isSuperAdmin, isTeacher, selectedStudent, managedStudentIds]);
-  
-  const isLoading = loadingProfile || loadingSubmissions || (isTeacher && loadingStudents);
-  const error = submissionsError || studentsError;
+    if (isTeacher || isSuperAdmin) {
+        let studentsQuery;
+        const usersCollection = collection(firestore, 'users');
+        if (isSuperAdmin) {
+            studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'));
+        } else if (isTeacher && teacherManagedGroups.length > 0) {
+            studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+        } else {
+            setStudents([]);
+            checkAllDependenciesLoaded();
+        }
+
+        if (studentsQuery) {
+            const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+                setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                if (dependenciesLoaded === 0) checkAllDependenciesLoaded();
+            }, (err) => {
+                setError(err);
+                setIsLoading(false);
+            });
+            unsubscribes.push(unsubStudents);
+        }
+    } else {
+        loadSubmissions();
+    }
+    
+    function loadSubmissions() {
+        let submissionsQuery;
+        const submissionsRef = collection(firestore, 'submissions');
+
+        if (isSuperAdmin) {
+            submissionsQuery = selectedStudent === 'all' 
+                ? query(submissionsRef) 
+                : query(submissionsRef, where('studentId', '==', selectedStudent));
+        } else if (isTeacher) {
+            const studentIdsInManagedGroups = students.map(s => s.id);
+            if (studentIdsInManagedGroups.length === 0) {
+              setSubmissions([]);
+              setIsLoading(false);
+              return;
+            }
+            if (selectedStudent === 'all') {
+                // Firestore 'in' queries are limited to 30 values. If more, we might need a different approach.
+                // For now, this is fine for typical class sizes.
+                submissionsQuery = query(submissionsRef, where('studentId', 'in', studentIdsInManagedGroups.slice(0, 30)));
+            } else if (studentIdsInManagedGroups.includes(selectedStudent)) {
+                submissionsQuery = query(submissionsRef, where('studentId', '==', selectedStudent));
+            } else {
+              // This case happens if a student filter is selected that the teacher should not see.
+              // We create a query that returns nothing.
+              submissionsQuery = query(submissionsRef, where('studentId', '==', 'invalid-id-for-query'));
+            }
+        } else { // Student
+            submissionsQuery = query(submissionsRef, where('studentId', '==', userProfile.uid));
+        }
+
+        if (submissionsQuery) {
+            const unsubSubmissions = onSnapshot(submissionsQuery, (snapshot) => {
+                setSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setError(null);
+                setIsLoading(false);
+            }, (err) => {
+                setError(err);
+                setIsLoading(false);
+            });
+            unsubscribes.push(unsubSubmissions);
+        } else {
+            setIsLoading(false);
+        }
+    }
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [firestore, userProfile, loadingProfile, selectedStudent]);
+
 
   const getGradeColor = (grade: number) => {
     if (grade >= 4.5) return 'text-green-600';
@@ -203,7 +196,7 @@ export default function ResultsPage() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error al Cargar Resultados</AlertTitle>
-        <AlertDescription>No se pudieron cargar los datos. Error: {error.message}</AlertDescription>
+        <AlertDescription>No se pudieron cargar los datos. Esto puede ser un problema de permisos o de conexión. Intenta recargar la página. <br /><span className="text-xs mt-2 block">{error.message}</span></AlertDescription>
       </Alert>
     );
   }
