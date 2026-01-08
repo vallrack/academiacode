@@ -56,10 +56,10 @@ const challengeTemplates = {
   }
 };
 
-type Language = keyof typeof challengeTemplates;
+type LanguageWithTemplate = keyof typeof challengeTemplates;
 
 export default function NewChallengePage() {
-  const [language, setLanguage] = useState<Language>("javascript");
+  const [language, setLanguage] = useState<string>("javascript");
   const [title, setTitle] = useState(challengeTemplates.javascript.title);
   const [category, setCategory] = useState("Semana 1");
   const [description, setDescription] = useState(challengeTemplates.javascript.description);
@@ -72,10 +72,14 @@ export default function NewChallengePage() {
   const firestore = useFirestore();
 
   useEffect(() => {
-    const template = challengeTemplates[language as Language] || challengeTemplates.javascript;
-    setTitle(template.title);
-    setDescription(template.description);
-    setTestCases(template.testCases);
+    // Solo aplicar la plantilla si el lenguaje seleccionado es uno de los que tienen plantilla.
+    if (language in challengeTemplates) {
+      const template = challengeTemplates[language as LanguageWithTemplate];
+      setTitle(template.title);
+      setDescription(template.description);
+      setTestCases(template.testCases);
+    }
+    // Si se selecciona un lenguaje sin plantilla, no se hace nada, manteniendo los datos actuales.
   }, [language]);
 
 
@@ -198,7 +202,7 @@ export default function NewChallengePage() {
               </div>
               <div className="grid gap-3">
                 <Label htmlFor="language">Lenguaje</Label>
-                <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
+                <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger id="language" aria-label="Selecciona un lenguaje">
                     <SelectValue placeholder="Selecciona un lenguaje" />
                   </SelectTrigger>
@@ -274,5 +278,3 @@ export default function NewChallengePage() {
     </div>
   );
 }
-
-    
