@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import {
   doc,
   getDoc,
@@ -12,8 +12,8 @@ import {
   where,
   type DocumentData,
   type Query,
+  onSnapshot,
 } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,17 +65,28 @@ export default function EditGroupPage() {
   const params = useParams();
   const { id: groupId } = params;
   
+  const [students, setStudents] = useState<DocumentData[] | null>(null);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
 
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !groupId) return null;
-    return query(
+  useEffect(() => {
+    if (!firestore || !groupId) {
+        setLoadingStudents(false);
+        return;
+    };
+    const studentsQuery = query(
       collection(firestore, 'users'),
       where('groupId', '==', Array.isArray(groupId) ? groupId[0] : groupId)
     ) as Query<Student & DocumentData>;
+    
+    const unsubscribe = onSnapshot(studentsQuery, (snapshot) => {
+        setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoadingStudents(false);
+    }, () => setLoadingStudents(false));
+    
+    return () => unsubscribe();
   }, [firestore, groupId]);
-
-  const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
 
   useEffect(() => {
     if (!firestore || !groupId) return;
@@ -306,9 +317,9 @@ export default function EditGroupPage() {
                             </TableHeader>
                             <TableBody>
                                 {students.map(student => (
-                                    <TableRow key={student.id}>
-                                        <TableCell className="font-medium">{student.displayName}</TableCell>
-                                        <TableCell>{student.email}</TableCell>
+                                    <TableRow key={(student as Student).id}>
+                                        <TableCell className="font-medium">{(student as Student).displayName}</TableCell>
+                                        <TableCell>{(student as Student).email}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -338,3 +349,5 @@ export default function EditGroupPage() {
     </div>
   );
 }
+
+    

@@ -15,9 +15,9 @@ import {
   type Query,
   query,
   where,
+  onSnapshot,
 } from 'firebase/firestore';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -77,45 +77,72 @@ export default function EditChallengePage() {
   const { user } = useUser();
   const { userProfile } = useUserProfile();
 
+  const [groups, setGroups] = useState<DocumentData[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [students, setStudents] = useState<DocumentData[] | null>(null);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+  
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
   const isTeacher = userProfile?.role === 'TEACHER';
   const teacherManagedGroups = userProfile?.managedGroupIds || [];
 
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+        setLoadingGroups(false);
+        setLoadingStudents(false);
+        return;
+    }
 
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
-    
+    // Fetch Groups
+    let groupsQuery: Query | null = null;
     const groupsCollection = collection(firestore, 'groups');
-
     if (isSuperAdmin) {
-        return groupsCollection as Query<Group & DocumentData>;
+        groupsQuery = groupsCollection as Query<Group & DocumentData>;
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+        groupsQuery = query(groupsCollection, where('__name__', 'in', teacherManagedGroups));
     }
-
-    if (isTeacher && teacherManagedGroups.length > 0) {
-        return query(groupsCollection, where('__name__', 'in', teacherManagedGroups));
-    }
-
-    return null; // Teacher with no groups sees no groups
-  }, [firestore, userProfile, isSuperAdmin, isTeacher, teacherManagedGroups]);
-  const { data: groups, loading: loadingGroups } = useCollection(groupsQuery);
-
-
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
     
+    if(groupsQuery) {
+        const unsubscribeGroups = onSnapshot(groupsQuery, (snapshot) => {
+            setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoadingGroups(false);
+        }, () => setLoadingGroups(false));
+        
+        return () => unsubscribeGroups();
+    } else {
+        setGroups([]);
+        setLoadingGroups(false);
+    }
+  }, [firestore, userProfile, isSuperAdmin, isTeacher, teacherManagedGroups]);
+
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+        setLoadingStudents(false);
+        return;
+    }
+      
+    // Fetch Students
+    let studentsQuery: Query | null = null;
     const usersCollection = collection(firestore, 'users');
-
     if (isSuperAdmin) {
-        return query(usersCollection, where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
+        studentsQuery = query(usersCollection, where('role', '==', 'STUDENT')) as Query<Student & DocumentData>;
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+        studentsQuery = query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups)) as Query<Student & DocumentData>;
     }
     
-    if (isTeacher && teacherManagedGroups.length > 0) {
-        return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups)) as Query<Student & DocumentData>;
+    if(studentsQuery) {
+        const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
+            setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setLoadingStudents(false);
+        }, () => setLoadingStudents(false));
+        
+        return () => unsubscribeStudents();
+    } else {
+        setStudents([]);
+        setLoadingStudents(false);
     }
-
-    return null; // Teacher with no groups sees no students
   }, [firestore, userProfile, isSuperAdmin, isTeacher, teacherManagedGroups]);
-  const { data: students, loading: loadingStudents } = useCollection(studentsQuery);
+
 
   useEffect(() => {
     if (!firestore || !challengeId) return;
@@ -331,7 +358,7 @@ export default function EditChallengePage() {
                             <Select value={targetGroup} onValueChange={(value) => { setTargetGroup(value); setTargetStudent(''); }}>
                                 <SelectTrigger id="target-group"><SelectValue placeholder="Selecciona un grupo" /></SelectTrigger>
                                 <SelectContent>
-                                    {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name} - {formatSchedule(group.schedule)}</SelectItem>)}
+                                    {groups?.map(group => <SelectItem key={group.id} value={(group as Group).id}>{(group as Group).name} - {formatSchedule((group as Group).schedule)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -342,7 +369,7 @@ export default function EditChallengePage() {
                             <Select value={targetStudent} onValueChange={(value) => { setTargetStudent(value); setTargetGroup(''); }}>
                                 <SelectTrigger id="target-student"><SelectValue placeholder="Selecciona un estudiante" /></SelectTrigger>
                                 <SelectContent>
-                                    {students?.map(student => <SelectItem key={student.id} value={student.id}>{student.displayName}</SelectItem>)}
+                                    {students?.map(student => <SelectItem key={student.id} value={(student as Student).id}>{(student as Student).displayName}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         )}
@@ -386,3 +413,5 @@ export default function EditChallengePage() {
     </div>
   );
 }
+
+    

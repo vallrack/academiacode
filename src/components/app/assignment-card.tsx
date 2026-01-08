@@ -1,9 +1,9 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { doc, type DocumentData } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { doc, type DocumentData, getDoc } from 'firebase/firestore';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../ui/card';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Clock, Users, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useState, useEffect } from 'react';
 
 type Assignment = {
     id: string;
@@ -24,18 +25,39 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
     const router = useRouter();
     const firestore = useFirestore();
 
-    const challengeRef = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return doc(firestore, 'challenges', assignment.challengeId);
-    }, [firestore, assignment.challengeId]);
-    const { data: challenge, isLoading: loadingChallenge } = useDoc<DocumentData>(challengeRef);
+    const [challenge, setChallenge] = useState<DocumentData | null>(null);
+    const [loadingChallenge, setLoadingChallenge] = useState(true);
+    const [group, setGroup] = useState<DocumentData | null>(null);
+    const [loadingGroup, setLoadingGroup] = useState(true);
 
-    const groupRef = useMemoFirebase(() => {
-        if (!firestore || assignment.targetType !== 'group') return null;
-        return doc(firestore, 'groups', assignment.targetId);
+    useEffect(() => {
+        if (!firestore) {
+            setLoadingChallenge(false);
+            return;
+        }
+        const challengeRef = doc(firestore, 'challenges', assignment.challengeId);
+        getDoc(challengeRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setChallenge(docSnap.data());
+            }
+            setLoadingChallenge(false);
+        });
+    }, [firestore, assignment.challengeId]);
+
+    useEffect(() => {
+        if (!firestore || assignment.targetType !== 'group') {
+            setLoadingGroup(false);
+            return;
+        }
+        const groupRef = doc(firestore, 'groups', assignment.targetId);
+        getDoc(groupRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setGroup(docSnap.data());
+            }
+            setLoadingGroup(false);
+        });
     }, [firestore, assignment.targetId, assignment.targetType]);
-    const { data: group, isLoading: loadingGroup } = useDoc<DocumentData>(groupRef);
-    
+
     const isLoading = loadingChallenge || loadingGroup;
 
     const handleStart = () => {
@@ -115,3 +137,5 @@ export function AssignmentCard({ assignment }: { assignment: Assignment }) {
         </Card>
     );
 }
+
+    

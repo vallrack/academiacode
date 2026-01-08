@@ -2,9 +2,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, type DocumentData, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { useDoc } from "@/firebase/firestore/use-doc";
+import { useFirestore } from "@/firebase";
+import { doc, type DocumentData, addDoc, collection, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -56,14 +55,40 @@ export default function SessionIDEPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AIAntiCheatingOutput | null>(null);
+  
+  const [challenge, setChallenge] = useState<DocumentData | null>(null);
+  const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const challengeRef = useMemoFirebase(() => {
-    if (!firestore || !challengeId) return null;
-    return doc(firestore, 'challenges', challengeId);
+  useEffect(() => {
+    if (!firestore || !challengeId) {
+      setIsLoadingChallenge(false);
+      return;
+    }
+    
+    setIsLoadingChallenge(true);
+    const challengeRef = doc(firestore, 'challenges', challengeId);
+    
+    const fetchChallenge = async () => {
+        try {
+            const docSnap = await getDoc(challengeRef);
+            if (docSnap.exists()) {
+                setChallenge(docSnap.data());
+            } else {
+                setError('No se pudo encontrar el desafío solicitado.');
+            }
+        } catch (err) {
+            console.error('Error cargando documento:', err);
+            setError('Error al cargar el desafío desde la base de datos.');
+        } finally {
+            setIsLoadingChallenge(false);
+        }
+    };
+    
+    fetchChallenge();
+
   }, [firestore, challengeId]);
 
-  const { data: challenge, isLoading: isLoadingChallenge, error: docError } = useDoc<DocumentData>(challengeRef);
   
   const testCases = React.useMemo(() => {
     if (!challenge?.testCases) return [];
@@ -73,13 +98,6 @@ export default function SessionIDEPage() {
         return [];
     }
   }, [challenge]);
-
-  useEffect(() => {
-    if (docError) {
-      console.error('Error cargando documento:', docError);
-      setError('Error al cargar el desafío desde la base de datos');
-    }
-  }, [docError]);
 
   useEffect(() => {
     if (!challenge) return;
@@ -229,14 +247,14 @@ export default function SessionIDEPage() {
     );
   }
   
-  if (error || docError) {
+  if (error) {
     return (
       <div className="flex h-screen w-full items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-lg">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>
-            {error || docError?.message || 'Ocurrió un error al cargar el desafío'}
+            {error || 'Ocurrió un error al cargar el desafío'}
           </AlertDescription>
         </Alert>
       </div>
@@ -439,3 +457,5 @@ export default function SessionIDEPage() {
     </div>
   );
 }
+
+    

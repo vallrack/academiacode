@@ -1,9 +1,9 @@
+
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { useFirestore, useMemoFirebase } from "@/firebase";
-import { useCollection } from "@/firebase/firestore/use-collection";
-import { collection, query, where, type DocumentData } from "firebase/firestore";
+import React, { useState, useMemo, useEffect } from 'react';
+import { useFirestore } from "@/firebase";
+import { collection, query, where, type DocumentData, onSnapshot } from "firebase/firestore";
 import { Calendar, BookOpen, Users, Clock, User, PlusCircle, AlertCircle, Filter } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -13,6 +13,8 @@ import CreateAssignmentForm from '@/components/app/create-assignment-form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useUserProfile } from '@/contexts/user-profile-context';
+
+export const dynamic = 'force-dynamic';
 
 type GroupSchedule = {
   days: string[];
@@ -27,6 +29,8 @@ type Group = {
 };
 type Student = { id: string; displayName: string };
 
+type Assignment = DocumentData & { id: string };
+
 export default function AssignmentsPageContent() {
   const { userProfile, loadingProfile } = useUserProfile();
   const firestore = useFirestore();
@@ -35,100 +39,117 @@ export default function AssignmentsPageContent() {
   
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [filterStudent, setFilterStudent] = useState<string>('');
+
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   
   const isTeacher = userProfile?.role === 'TEACHER';
   const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
   const canCreate = isTeacher || isSuperAdmin;
   const teacherManagedGroups = userProfile?.managedGroupIds || [];
 
+  const [groups, setGroups] = useState<DocumentData[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [students, setStudents] = useState<DocumentData[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(true);
 
-  const assignmentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
+ useEffect(() => {
+    if (!firestore || !canCreate) {
+      setLoadingGroups(false);
+      setLoadingStudents(false);
+      return;
+    }
 
+    let groupsQuery: any = collection(firestore, 'groups');
+    if (isTeacher && teacherManagedGroups.length > 0) {
+      groupsQuery = query(groupsQuery, where('__name__', 'in', teacherManagedGroups));
+    } else if (isTeacher) {
+      setLoadingGroups(false);
+      setGroups([]);
+    }
+    
+    const unsubscribeGroups = onSnapshot(groupsQuery, snapshot => {
+      setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingGroups(false);
+    }, () => setLoadingGroups(false));
+
+    let studentsQuery: any = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    if (isTeacher && teacherManagedGroups.length > 0) {
+      studentsQuery = query(studentsQuery, where('groupId', 'in', teacherManagedGroups));
+    } else if (isTeacher) {
+      setLoadingStudents(false);
+      setStudents([]);
+    }
+
+    const unsubscribeStudents = onSnapshot(studentsQuery, snapshot => {
+      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingStudents(false);
+    }, () => setLoadingStudents(false));
+
+    return () => {
+      unsubscribeGroups();
+      unsubscribeStudents();
+    };
+  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
+
+
+  useEffect(() => {
+    if (!firestore || !userProfile) {
+      setLoadingAssignments(false);
+      return;
+    };
+
+    setLoadingAssignments(true);
+    let assignmentsQuery: any;
     const assignmentsRef = collection(firestore, 'assignments');
 
-    // Super Admin can see everything, respecting filters
     if (isSuperAdmin) {
-      if (filterGroup) return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
-      if (filterStudent) return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-      return query(assignmentsRef);
-    }
-    
-    // Teacher can only see assignments from their managed groups
-    if (isTeacher) {
-        // If teacher manages no groups, they see no assignments
-        if (teacherManagedGroups.length === 0) return null;
-        
-        // If a filter is applied, it must be for a group they manage
+      if (filterGroup) assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+      else if (filterStudent) assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+      else assignmentsQuery = query(assignmentsRef);
+    } else if (isTeacher) {
+        if (teacherManagedGroups.length === 0) {
+          setAssignments([]);
+          setLoadingAssignments(false);
+          return;
+        };
         if (filterGroup && teacherManagedGroups.includes(filterGroup)) {
-            return query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+            assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+        } else if (filterStudent) {
+            assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+        } else {
+            assignmentsQuery = query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
         }
-        // When filtering by student, we don't need extra checks as the student list is already filtered
-        if (filterStudent) {
-            return query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-        }
-
-        // No filter or invalid filter, so show all assignments for their managed groups
-        return query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
-    }
-    
-    // Student sees assignments for their group or for them individually
-    if (userProfile.groupId) {
-      return query(assignmentsRef, where('targetId', 'in', [userProfile.groupId, userProfile.uid]));
+    } else { // Student
+      const studentTargets = [userProfile.uid];
+      if (userProfile.groupId) studentTargets.push(userProfile.groupId);
+      assignmentsQuery = query(assignmentsRef, where('targetId', 'in', studentTargets));
     }
 
-    // Student with no group only sees individual assignments
-    return query(assignmentsRef, where('targetId', '==', userProfile.uid));
+    const unsubscribe = onSnapshot(assignmentsQuery, (snapshot) => {
+      let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+      if (userProfile.role === 'STUDENT') {
+        results = results.filter(a => 
+          (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
+          (a.targetType === 'student' && a.targetId === userProfile.uid)
+        );
+      }
+
+      results.sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
+      setAssignments(results);
+      setLoadingAssignments(false);
+      setError(null);
+    }, (err) => {
+      console.error("Error fetching assignments: ", err);
+      setError(err);
+      setLoadingAssignments(false);
+    });
+
+    return () => unsubscribe();
   }, [firestore, userProfile, filterGroup, filterStudent, isSuperAdmin, isTeacher, teacherManagedGroups]);
-  
-  const { data: assignmentsRaw, isLoading: loadingAssignments, error } = useCollection<DocumentData>(assignmentsQuery);
-  
-  const groupsQuery = useMemoFirebase(() => {
-    if (!firestore || !canCreate) return null;
-    
-    const groupsCollection = collection(firestore, 'groups');
 
-    if(isSuperAdmin) {
-        return groupsCollection;
-    }
-    
-    if(isTeacher && teacherManagedGroups.length > 0) {
-        return query(groupsCollection, where('__name__', 'in', teacherManagedGroups));
-    }
-
-    return null;
-  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
-  const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
-  
-  const studentsQuery = useMemoFirebase(() => {
-    if (!firestore || !canCreate) return null;
-
-    const usersCollection = collection(firestore, 'users');
-    
-    if(isSuperAdmin) {
-        return query(usersCollection, where('role', '==', 'STUDENT'));
-    }
-    
-    if(isTeacher && teacherManagedGroups.length > 0) {
-        return query(usersCollection, where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
-    }
-    return null;
-  }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
-  const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
-
-  const assignments = useMemo(() => {
-    if (!assignmentsRaw || !userProfile) return [];
-    
-    if (userProfile.role === 'STUDENT') {
-      return assignmentsRaw.filter(a => 
-        (a.targetType === 'group' && a.targetId === userProfile.groupId) ||
-        (a.targetType === 'student' && a.targetId === userProfile.uid)
-      ).sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
-    }
-    
-    return [...assignmentsRaw].sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
-  }, [assignmentsRaw, userProfile]);
 
   const isLoading = loadingProfile || loadingAssignments;
   
@@ -313,3 +334,5 @@ export default function AssignmentsPageContent() {
     </div>
   );
 }
+
+    
