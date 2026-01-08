@@ -132,8 +132,12 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     setIsSubmitting(true);
 
     try {
+      const selectedChallenge = challenges?.find(c => c.id === formData.challengeId);
+      const challengeTitle = selectedChallenge?.title || 'Desafío sin título';
+
       const assignmentData = {
         challengeId: formData.challengeId,
+        challengeTitle: challengeTitle,
         targetId: formData.targetId,
         targetType: targetType,
         assignedBy: user.uid,

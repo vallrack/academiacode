@@ -301,7 +301,7 @@ export default function AssignmentsPageContent() {
                         </div>
                       )}
                     </div>
-                    <h3 className="text-xl font-semibold mb-3">Desafío Asignado</h3>
+                    <h3 className="text-xl font-semibold mb-3">{assignment.challengeTitle || 'Desafío Asignado'}</h3>
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm mt-3">
                       {assignment.dueDate && (
                         <div className={`flex items-center gap-1.5 ${overdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>

@@ -221,6 +221,7 @@ export default function EditChallengePage() {
     
     const assignmentData = {
         challengeId: Array.isArray(challengeId) ? challengeId[0] : challengeId,
+        challengeTitle: title, // Denormalize title
         targetId: targetGroup || targetStudent,
         targetType: targetGroup ? 'group' : 'student',
         dueDate,
