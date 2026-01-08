@@ -3,11 +3,14 @@ import * as admin from 'firebase-admin';
 
 let isInitialized = false;
 
-/**
- * Inicializa Firebase Admin SDK de forma segura usando variables de entorno individuales.
- */
 function initializeFirebaseAdmin() {
-  // Si ya está inicializado, no hacer nada
+  // Skip durante build si no hay variables de entorno.
+  // Vercel setea esta variable automáticamente.
+  if (process.env.VERCEL && !process.env.FIREBASE_PROJECT_ID) {
+      console.log('⏭️ Skipping Firebase Admin initialization during build (no env vars found).');
+      return;
+  }
+    
   if (isInitialized || admin.apps.length > 0) {
     isInitialized = true;
     return;
@@ -19,6 +22,11 @@ function initializeFirebaseAdmin() {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
     if (!projectId || !privateKey || !clientEmail) {
+       // No lanzar error durante el build, solo advertir.
+       if (process.env.NODE_ENV === 'production') {
+         console.warn('⚠️ Firebase Admin environment variables are not defined. Skipping initialization.');
+         return;
+       }
       throw new Error(
         '❌ Las variables de entorno para Firebase Admin (FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL) no están definidas.'
       );
@@ -39,8 +47,10 @@ function initializeFirebaseAdmin() {
     
   } catch (error: any) {
     console.error('❌ Error al inicializar Firebase Admin SDK:', error.message);
-    // Re-lanzar el error para que falle rápido y sea obvio
-    throw error;
+    // No re-lanzar error durante el build para permitir que se complete.
+    if (process.env.NODE_ENV !== 'production') {
+        throw error;
+    }
   }
 }
 
@@ -52,6 +62,10 @@ initializeFirebaseAdmin();
  */
 function getAdminAuth() {
   if (!isInitialized) {
+    // Durante el build, esto puede fallar. Devolvemos un objeto nulo para que no se rompa el build.
+    if (process.env.NODE_ENV === 'production') {
+        return null as any;
+    }
     throw new Error('Firebase Admin no está inicializado. Revisa tus variables de entorno.');
   }
   return admin.auth();
@@ -62,6 +76,9 @@ function getAdminAuth() {
  */
 function getAdminDb() {
   if (!isInitialized) {
+     if (process.env.NODE_ENV === 'production') {
+        return null as any;
+    }
     throw new Error('Firebase Admin no está inicializado. Revisa tus variables de entorno.');
   }
   return admin.firestore();

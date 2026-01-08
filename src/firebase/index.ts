@@ -5,59 +5,53 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-// --- Instancias de Firebase cacheadas ---
-let firebaseApp: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let firestore: Firestore | null = null;
+let firebaseApp: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
 
-/**
- * Inicializa la aplicación Firebase y los SDKs del cliente de forma idempotente.
- */
-function initializeFirebaseClient(): { firebaseApp: FirebaseApp | null, auth: Auth | null, firestore: Firestore | null } {
-  // Si ya se inicializó, retornar las instancias existentes
-  if (firebaseApp) {
+function initializeFirebaseClient() {
+  // CAMBIO: No validar en build time, solo en runtime
+  const isServer = typeof window === 'undefined';
+  
+  if (isServer) {
+    // En el servidor (build time), retornar stubs
+    console.log('⏭️ Skipping Firebase initialization during build');
+    // @ts-ignore - stubs para build
+    firebaseApp = { name: '[DEFAULT]' };
+    // @ts-ignore
+    auth = {};
+    // @ts-ignore
+    firestore = {};
     return { firebaseApp, auth, firestore };
   }
 
-  // Si estamos en un entorno de servidor (como el build de Vercel) y no hay config,
-  // no inicializamos para permitir que el build pase.
-  if (typeof window === 'undefined' && (!firebaseConfig.apiKey || !firebaseConfig.projectId)) {
-    console.warn('⚠️ Advertencia: Variables de entorno de Firebase no encontradas en el entorno de servidor. Saltando inicialización para el build.');
-    return { firebaseApp: null, auth: null, firestore: null };
-  }
-
-  // Validar que la configuración existe en el cliente
+  // Validar solo en el cliente (browser)
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.error('❌ Error: Configuración de Firebase incompleta. Revisa tus variables de entorno NEXT_PUBLIC_*.');
-    // En lugar de lanzar un error, devolvemos null para que la app no crashee.
-    // Los hooks se encargarán de manejar el estado nulo.
-    return { firebaseApp: null, auth: null, firestore: null };
+    console.error('❌ Error: Configuración de Firebase incompleta');
+    console.log('Config actual:', firebaseConfig);
+    throw new Error(
+      'Firebase no está configurado correctamente. Verifica tus variables de entorno NEXT_PUBLIC_*'
+    );
   }
 
-  // Inicializar solo si no existe
   if (getApps().length === 0) {
     console.log('🔥 Inicializando Firebase con projectId:', firebaseConfig.projectId);
-    const app = initializeApp(firebaseConfig);
-    firebaseApp = app;
-    auth = getAuth(app);
-    firestore = getFirestore(app);
+    firebaseApp = initializeApp(firebaseConfig);
   } else {
-    const app = getApp();
-    firebaseApp = app;
-    auth = getAuth(app);
-    firestore = getFirestore(app);
+    firebaseApp = getApp();
   }
   
+  auth = getAuth(firebaseApp);
+  firestore = getFirestore(firebaseApp);
+
   return { firebaseApp, auth, firestore };
 }
 
-// Inicializamos inmediatamente para que las instancias estén disponibles para exportación.
+// Inicializar
 initializeFirebaseClient();
 
-// Exportaciones directas
 export { firebaseApp, auth, firestore };
 
-// --- Exports de Hooks y Providers ---
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';

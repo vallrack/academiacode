@@ -18,6 +18,8 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
 import { Checkbox } from '@/components/ui/checkbox';
 
+export const dynamic = 'force-dynamic';
+
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
 type GroupSchedule = {

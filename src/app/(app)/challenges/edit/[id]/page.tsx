@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils';
 import { es } from 'date-fns/locale';
 import { useUserProfile } from '@/contexts/user-profile-context';
 
+export const dynamic = 'force-dynamic';
+
 type GroupSchedule = {
   days: string[];
   startTime: string;

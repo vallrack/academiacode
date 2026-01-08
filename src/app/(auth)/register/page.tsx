@@ -18,6 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 
+export const dynamic = 'force-dynamic';
+
 type GroupSchedule = {
   days: string[];
   startTime: string;

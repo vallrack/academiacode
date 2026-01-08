@@ -17,6 +17,8 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useUser } from '@/firebase/auth/use-user';
 import { createUser } from '@/ai/create-user-flow';
 
+export const dynamic = 'force-dynamic';
+
 type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
 
 // Define the input type locally instead of importing from server file

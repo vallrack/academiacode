@@ -40,6 +40,8 @@ import { ChevronLeft, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserProfile } from '@/contexts/user-profile-context';
 
+export const dynamic = 'force-dynamic';
+
 const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 type Student = {

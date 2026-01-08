@@ -23,6 +23,8 @@ import { useUser } from '@/firebase/auth/use-user';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
 
+export const dynamic = 'force-dynamic';
+
 const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 export default function NewGroupPage() {
@@ -189,7 +191,7 @@ export default function NewGroupPage() {
           <Link href="/groups">Cancelar</Link>
         </Button>
         <Button size="sm" onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Guardando...' : 'Guardar Grupo'}
+          {isSaving ? "Guardando..." : "Guardar Grupo"}
         </Button>
       </div>
     </div>

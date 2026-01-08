@@ -30,6 +30,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
+export const dynamic = 'force-dynamic';
 
 export default function NewChallengePage() {
   const [title, setTitle] = useState("Sumar dos números en JavaScript");
