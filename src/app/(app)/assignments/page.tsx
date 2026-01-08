@@ -60,36 +60,42 @@ export default function AssignmentsPageContent() {
       return;
     }
 
-    let groupsQuery: any = collection(firestore, 'groups');
-    if (isTeacher && teacherManagedGroups.length > 0) {
-      groupsQuery = query(groupsQuery, where('__name__', 'in', teacherManagedGroups));
-    } else if (isTeacher) {
+    let groupsQuery: any;
+    if (isSuperAdmin) {
+        groupsQuery = collection(firestore, 'groups');
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+      groupsQuery = query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+    } else {
       setLoadingGroups(false);
       setGroups([]);
     }
     
-    const unsubscribeGroups = onSnapshot(groupsQuery, snapshot => {
-      setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoadingGroups(false);
-    }, () => setLoadingGroups(false));
+    if (groupsQuery) {
+        const unsubscribeGroups = onSnapshot(groupsQuery, snapshot => {
+          setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          setLoadingGroups(false);
+        }, () => setLoadingGroups(false));
+         return () => unsubscribeGroups();
+    }
 
-    let studentsQuery: any = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
-    if (isTeacher && teacherManagedGroups.length > 0) {
-      studentsQuery = query(studentsQuery, where('groupId', 'in', teacherManagedGroups));
-    } else if (isTeacher) {
+
+    let studentsQuery: any;
+    if (isSuperAdmin) {
+        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+      studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+    } else {
       setLoadingStudents(false);
       setStudents([]);
     }
 
-    const unsubscribeStudents = onSnapshot(studentsQuery, snapshot => {
-      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      setLoadingStudents(false);
-    }, () => setLoadingStudents(false));
-
-    return () => {
-      unsubscribeGroups();
-      unsubscribeStudents();
-    };
+    if(studentsQuery) {
+        const unsubscribeStudents = onSnapshot(studentsQuery, snapshot => {
+          setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          setLoadingStudents(false);
+        }, () => setLoadingStudents(false));
+        return () => unsubscribeStudents();
+    }
   }, [firestore, canCreate, isSuperAdmin, isTeacher, teacherManagedGroups]);
 
 
@@ -104,9 +110,13 @@ export default function AssignmentsPageContent() {
     const assignmentsRef = collection(firestore, 'assignments');
 
     if (isSuperAdmin) {
-      if (filterGroup) assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
-      else if (filterStudent) assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
-      else assignmentsQuery = query(assignmentsRef);
+      if (filterGroup) {
+        assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
+      } else if (filterStudent) {
+        assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
+      } else {
+        assignmentsQuery = query(assignmentsRef); // Super Admin sees all
+      }
     } else if (isTeacher) {
         if (teacherManagedGroups.length === 0) {
           setAssignments([]);
@@ -116,8 +126,10 @@ export default function AssignmentsPageContent() {
         if (filterGroup && teacherManagedGroups.includes(filterGroup)) {
             assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterGroup), where('targetType', '==', 'group'));
         } else if (filterStudent) {
+            // A teacher can filter by a student they manage
             assignmentsQuery = query(assignmentsRef, where('targetId', '==', filterStudent), where('targetType', '==', 'student'));
         } else {
+            // By default, a teacher sees assignments for their managed groups
             assignmentsQuery = query(assignmentsRef, where('targetType', '==', 'group'), where('targetId', 'in', teacherManagedGroups));
         }
     } else { // Student
