@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { useUserProfile } from '@/contexts/user-profile-context';
 
 interface CreateAssignmentFormProps {
   onClose: () => void;
@@ -22,6 +23,7 @@ interface CreateAssignmentFormProps {
 export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssignmentFormProps) {
   const firestore = useFirestore();
   const { user } = useUser();
+  const { userProfile } = useUserProfile();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetType, setTargetType] = useState<'group' | 'student'>('group');
@@ -32,10 +34,20 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
     dueDate: '',
   });
 
+  const isTeacher = userProfile?.role === 'TEACHER';
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
+  const teacherManagedGroups = userProfile?.managedGroupIds || [];
+
   const groupsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, 'groups');
-  }, [firestore]);
+    if (isTeacher && teacherManagedGroups.length > 0) {
+      return query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+    }
+    if (isSuperAdmin) {
+      return collection(firestore, 'groups');
+    }
+    return null;
+  }, [firestore, isTeacher, isSuperAdmin, teacherManagedGroups]);
 
   const { data: groups, isLoading: loadingGroups } = useCollection<DocumentData>(groupsQuery);
 
@@ -48,11 +60,19 @@ export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssig
 
   const studentsQuery = useMemoFirebase(() => {
     if (!firestore || targetType !== 'student') return null;
-    return query(
-      collection(firestore, 'users'),
-      where('role', '==', 'STUDENT')
-    );
-  }, [firestore, targetType]);
+    
+    let q = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    
+    if (isTeacher && teacherManagedGroups.length > 0) {
+      q = query(q, where('groupId', 'in', teacherManagedGroups));
+    } else if (isTeacher) {
+      // Teacher with no groups can see no students
+      return null;
+    }
+    // SuperAdmin sees all students, so no extra filter needed
+    
+    return q;
+  }, [firestore, targetType, isTeacher, teacherManagedGroups]);
 
   const { data: students, isLoading: loadingStudents } = useCollection<DocumentData>(studentsQuery);
 
