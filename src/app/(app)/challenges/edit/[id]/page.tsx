@@ -248,6 +248,7 @@ export default function EditChallengePage() {
                 <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger id="language"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                      <SelectItem value="html">HTML</SelectItem>
                       <SelectItem value="javascript">JavaScript</SelectItem>
                       <SelectItem value="python">Python</SelectItem>
                       <SelectItem value="java">Java</SelectItem>

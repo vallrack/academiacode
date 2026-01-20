@@ -34,6 +34,26 @@ import { FirestorePermissionError } from "@/firebase/errors";
 export const dynamic = 'force-dynamic';
 
 const challengeTemplates = {
+  html: {
+    title: "Crear un fondo de color azul y un botón rojo",
+    description: "Crea una página HTML que tenga un fondo de color azul y contenga un único botón de color rojo con el texto 'Botón Rojo'. El CSS debe estar en una etiqueta <style> en el head.",
+    testCases: `[
+  {
+    "selector": "body",
+    "style": "background-color",
+    "expected": "blue"
+  },
+  {
+    "selector": "button",
+    "style": "background-color",
+    "expected": "red"
+  },
+  {
+    "selector": "button",
+    "textContent": "Botón Rojo"
+  }
+]`
+  },
   javascript: {
     title: "Sumar dos números en JavaScript",
     description: "Crea una función llamada 'suma' que acepte dos números como parámetros y devuelva su suma.",
@@ -260,6 +280,7 @@ export default function NewChallengePage() {
                     <SelectValue placeholder="Selecciona un lenguaje" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="html">HTML</SelectItem>
                     <SelectItem value="javascript">JavaScript</SelectItem>
                     <SelectItem value="python">Python</SelectItem>
                     <SelectItem value="java">Java</SelectItem>

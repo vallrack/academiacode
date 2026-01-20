@@ -60,7 +60,7 @@ const statusMap: Record<ChallengeStatus, string> = {
 };
 
 const languages = [
-  "javascript", "python", "java", "sql", "mysql", "csharp", "cpp", 
+  "html", "javascript", "python", "java", "sql", "mysql", "csharp", "cpp", 
   "typescript", "go", "rust", "swift", "kotlin", "php", "ruby"
 ];
 

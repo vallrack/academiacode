@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -38,7 +37,7 @@ function SkillsChart({ submissions }: { submissions: DocumentData[] }) {
   const skillsData = useMemo(() => {
     const skillCounts: { [key: string]: number } = {};
     submissions.forEach(sub => {
-      sub.developedSkills?.forEach((skill: string) => {
+      sub.analysis?.developedSkills?.forEach((skill: string) => {
         skillCounts[skill] = (skillCounts[skill] || 0) + 1;
       });
     });
@@ -160,14 +159,14 @@ export default function ResultsPage() {
 
     if (userProfile?.role === 'STUDENT') {
         return finalSubmissions.filter(sub => sub.studentId === userProfile.uid)
-            .sort((a, b) => (b.submissionDate?.toMillis() || 0) - (a.submissionDate?.toMillis() || 0));
+            .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
     }
 
     if (canManage) {
         const teacherManagedGroups = userProfile?.managedGroupIds || [];
         
         // Filter by teacher's managed groups if the user is a teacher
-        if (isTeacher) {
+        if (isTeacher && teacherManagedGroups.length > 0) {
             const studentIdsInManagedGroups = new Set(students.filter(s => teacherManagedGroups.includes(s.groupId)).map(s => s.id));
             finalSubmissions = finalSubmissions.filter(sub => studentIdsInManagedGroups.has(sub.studentId));
         }
@@ -181,7 +180,7 @@ export default function ResultsPage() {
         }
     }
     
-    return finalSubmissions.sort((a, b) => (b.submissionDate?.toMillis() || 0) - (a.submissionDate?.toMillis() || 0));
+    return finalSubmissions.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
   }, [selectedStudentId, selectedGroupId, submissions, students, canManage, userProfile, isTeacher]);
 
   const handleClearFilters = () => {
@@ -312,7 +311,7 @@ export default function ResultsPage() {
                    <AccordionTrigger>
                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full pr-4">
                         <div className="grid gap-1 text-left">
-                            <p className="font-semibold">{sub.challengeTitle}</p>
+                            <p className="font-semibold">{sub.challengeTitle || 'Desafío sin título'}</p>
                             {canManage && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                     <User className="w-3 h-3" />
@@ -322,34 +321,44 @@ export default function ResultsPage() {
                         </div>
                         <div className="flex items-center gap-4 mt-2 sm:mt-0">
                            <span className="text-xs text-muted-foreground">
-                             {formatDateSafe(sub.submissionDate)}
+                             {formatDateSafe(sub.createdAt)}
                            </span>
                            <div className={`flex items-center gap-1.5 font-bold text-lg ${getGradeColor(sub.grade)}`}>
                              <Star className="w-5 h-5" />
-                             <span>{sub.grade.toFixed(1)}</span>
+                             <span>{sub.grade?.toFixed(1) || 'N/A'} / 5</span>
                            </div>
                         </div>
                      </div>
                    </AccordionTrigger>
                    <AccordionContent>
-                     <div className="prose prose-sm dark:prose-invert max-w-none space-y-4 p-4 bg-muted/50 rounded-md">
-                        <h4 className="font-semibold">Informe de la IA</h4>
-                        <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans">{sub.report}</pre>
-                        
-                        {sub.screenRecordingUri && (
-                          <>
-                            <h4 className="font-semibold">Grabación de Pantalla</h4>
-                            <video controls src={sub.screenRecordingUri} className="w-full rounded-md" />
-                          </>
-                        )}
+                     {sub.analysis ? (
+                       <div className="prose prose-sm dark:prose-invert max-w-none space-y-4 p-4 bg-muted/50 rounded-md">
+                          <h4 className="font-semibold">Informe de la IA</h4>
+                          <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans">{sub.analysis.report || 'No se generó ningún reporte.'}</pre>
+                          
+                          {sub.videoUrl && (
+                            <>
+                              <h4 className="font-semibold">Grabación de Pantalla</h4>
+                              <video controls src={sub.videoUrl} className="w-full rounded-md" />
+                            </>
+                          )}
 
-                        <h4 className="font-semibold">Habilidades Demostradas</h4>
-                        <div className="flex flex-wrap gap-2">
-                            {sub.developedSkills.map((skill: string, index: number) => (
-                                <Badge key={index} variant="secondary">{skill}</Badge>
-                            ))}
+                          {sub.analysis.developedSkills && sub.analysis.developedSkills.length > 0 && (
+                            <>
+                              <h4 className="font-semibold">Habilidades Demostradas</h4>
+                              <div className="flex flex-wrap gap-2">
+                                  {sub.analysis.developedSkills.map((skill: string, index: number) => (
+                                      <Badge key={index} variant="secondary">{skill}</Badge>
+                                  ))}
+                              </div>
+                            </>
+                          )}
+                       </div>
+                     ) : (
+                        <div className="p-4 text-center text-muted-foreground">
+                          <p>No se encontraron datos de análisis para esta sumisión.</p>
                         </div>
-                     </div>
+                     )}
                    </AccordionContent>
                  </AccordionItem>
                ))}
