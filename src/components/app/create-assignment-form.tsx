@@ -1,0 +1,286 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useFirestore } from "@/firebase";
+import { useUser } from '@/firebase/auth/use-user';
+import { collection, addDoc, query, where, type DocumentData, Timestamp, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '../ui/skeleton';
+import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
+import { useUserProfile } from '@/contexts/user-profile-context';
+
+interface CreateAssignmentFormProps {
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type GroupSchedule = {
+  days: string[];
+  startTime: string;
+  endTime: string;
+};
+
+export default function CreateAssignmentForm({ onClose, onSuccess }: CreateAssignmentFormProps) {
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { userProfile } = useUserProfile();
+  const { toast } = useToast();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [targetType, setTargetType] = useState<'group' | 'student'>('group');
+  
+  const [formData, setFormData] = useState({
+    challengeId: '',
+    targetId: '',
+    dueDate: '',
+  });
+
+  const [groups, setGroups] = useState<DocumentData[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  const [challenges, setChallenges] = useState<DocumentData[] | null>(null);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [students, setStudents] = useState<DocumentData[] | null>(null);
+  const [loadingStudents, setLoadingStudents] = useState(true);
+
+  const isTeacher = userProfile?.role === 'TEACHER';
+  const isSuperAdmin = userProfile?.role === 'SUPER_ADMIN';
+  const teacherManagedGroups = userProfile?.managedGroupIds || [];
+
+  useEffect(() => {
+    if (!firestore) {
+      setLoadingChallenges(false);
+      setLoadingGroups(false);
+      setLoadingStudents(false);
+      return;
+    }
+    
+    // Fetch Challenges
+    const challengesQuery = collection(firestore, 'challenges');
+    const unsubChallenges = onSnapshot(challengesQuery, (snapshot) => {
+      setChallenges(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoadingChallenges(false);
+    }, () => setLoadingChallenges(false));
+
+    // Fetch Groups
+    let groupsQuery;
+    if (isSuperAdmin) {
+      groupsQuery = query(collection(firestore, 'groups'));
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+      groupsQuery = query(collection(firestore, 'groups'), where('__name__', 'in', teacherManagedGroups));
+    } else {
+      setLoadingGroups(false);
+      setGroups([]);
+    }
+
+    let unsubGroups = () => {};
+    if (groupsQuery) {
+      unsubGroups = onSnapshot(groupsQuery, (snapshot) => {
+        setGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoadingGroups(false);
+      }, () => setLoadingGroups(false));
+    }
+
+    return () => {
+      unsubChallenges();
+      unsubGroups();
+    };
+  }, [firestore, isSuperAdmin, isTeacher, teacherManagedGroups]);
+
+  useEffect(() => {
+    if (!firestore || targetType !== 'student') {
+        setLoadingStudents(false);
+        return;
+    }
+    
+    setLoadingStudents(true);
+    let studentsQuery;
+    if(isSuperAdmin) {
+        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'));
+    } else if (isTeacher && teacherManagedGroups.length > 0) {
+        studentsQuery = query(collection(firestore, 'users'), where('role', '==', 'STUDENT'), where('groupId', 'in', teacherManagedGroups));
+    } else {
+        setLoadingStudents(false);
+        setStudents([]);
+        return;
+    }
+    
+    const unsubStudents = onSnapshot(studentsQuery, (snapshot) => {
+        setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setLoadingStudents(false);
+    }, () => setLoadingStudents(false));
+    
+    return () => unsubStudents();
+  }, [firestore, targetType, isSuperAdmin, isTeacher, teacherManagedGroups]);
+
+  const handleSubmit = async () => {
+    if (!firestore || !user) return;
+
+    if (!formData.challengeId || !formData.targetId) {
+      toast({
+        variant: "destructive",
+        title: 'Campos Incompletos',
+        description: 'Por favor selecciona un desafío y un objetivo (grupo o estudiante).'
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const selectedChallenge = challenges?.find(c => c.id === formData.challengeId);
+      const challengeTitle = selectedChallenge?.title || 'Desafío sin título';
+
+      const assignmentData = {
+        challengeId: formData.challengeId,
+        challengeTitle: challengeTitle,
+        targetId: formData.targetId,
+        targetType: targetType,
+        assignedBy: user.uid,
+        assignedAt: serverTimestamp(),
+        dueDate: formData.dueDate ? Timestamp.fromDate(new Date(formData.dueDate)) : null,
+      };
+
+      await addDoc(collection(firestore, 'assignments'), assignmentData);
+
+      toast({
+        title: '¡Asignación Creada!',
+        description: 'La nueva asignación ha sido guardada correctamente.'
+      });
+      onSuccess?.();
+      onClose();
+    } catch (error) {
+      console.error('Error creando asignación:', error);
+      toast({
+          variant: "destructive",
+          title: 'Error al Crear',
+          description: `No se pudo crear la asignación. ${(error as Error).message}`
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  const formatSchedule = (schedule: GroupSchedule | string) => {
+    if (typeof schedule === 'string') {
+      return schedule;
+    }
+    if (typeof schedule === 'object' && schedule.days && schedule.startTime && schedule.endTime) {
+      const days = schedule.days.join(', ');
+      return `${days} (${schedule.startTime} - ${schedule.endTime})`;
+    }
+    return "Horario no definido";
+  };
+
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in-0">
+      <div className="bg-card rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="sticky top-0 bg-card border-b p-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Nueva Asignación</h2>
+          <Button
+            onClick={onClose}
+            variant="ghost"
+            size="icon"
+            type="button"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        <div className="p-6 space-y-6 overflow-y-auto">
+          <div className="grid gap-3">
+            <Label htmlFor="challenge">Desafío *</Label>
+            {loadingChallenges ? <Skeleton className="h-10 w-full" /> : (
+              <Select value={formData.challengeId} onValueChange={(value) => setFormData({ ...formData, challengeId: value })}>
+                <SelectTrigger id="challenge"><SelectValue placeholder="Selecciona un desafío" /></SelectTrigger>
+                <SelectContent>
+                  {challenges?.map(challenge => (
+                    <SelectItem key={challenge.id} value={challenge.id}>
+                      {challenge.title || `Desafío sin título`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div className="grid gap-3">
+            <Label>Asignar a: *</Label>
+             <RadioGroup defaultValue="group" value={targetType} onValueChange={(value) => { setTargetType(value as 'group' | 'student'); setFormData({...formData, targetId: ''}); }}>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="group" id="r-group" />
+                    <Label htmlFor="r-group" className="font-normal">Un grupo completo</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="student" id="r-student" />
+                    <Label htmlFor="r-student" className="font-normal">Un estudiante específico</Label>
+                </div>
+            </RadioGroup>
+          </div>
+
+            {targetType === 'group' ? (
+              <div className="grid gap-3">
+                <Label htmlFor="group-select">Selecciona el grupo *</Label>
+                 {loadingGroups ? <Skeleton className="h-10 w-full" /> : (
+                    <Select value={formData.targetId} onValueChange={(value) => setFormData({ ...formData, targetId: value })}>
+                        <SelectTrigger id="group-select"><SelectValue placeholder="Selecciona un grupo" /></SelectTrigger>
+                        <SelectContent>
+                            {groups?.map(group => <SelectItem key={group.id} value={group.id}>{group.name} - {formatSchedule(group.schedule)}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                 )}
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <Label htmlFor="student-select">Selecciona el estudiante *</Label>
+                 {loadingStudents ? <Skeleton className="h-10 w-full" /> : (
+                    <Select value={formData.targetId} onValueChange={(value) => setFormData({ ...formData, targetId: value })}>
+                        <SelectTrigger id="student-select"><SelectValue placeholder="Selecciona un estudiante" /></SelectTrigger>
+                        <SelectContent>
+                            {students?.map(student => <SelectItem key={student.id} value={student.id}>{student.displayName || student.email}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                 )}
+              </div>
+            )}
+
+          <div className="grid gap-3">
+            <Label htmlFor="due-date">Fecha y hora de entrega</Label>
+            <Input
+              id="due-date"
+              type="datetime-local"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            />
+            <p className="text-sm text-muted-foreground">Opcional. Si se deja en blanco, no habrá fecha límite.</p>
+          </div>
+        </div>
+          
+        <div className="flex gap-3 p-6 mt-auto border-t">
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="flex-1"
+              disabled={isSubmitting}
+              type="button"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="flex-1"
+              disabled={isSubmitting || !formData.challengeId || !formData.targetId}
+              type="button"
+            >
+              {isSubmitting ? 'Creando...' : 'Crear Asignación'}
+            </Button>
+          </div>
+      </div>
+    </div>
+  );
+}

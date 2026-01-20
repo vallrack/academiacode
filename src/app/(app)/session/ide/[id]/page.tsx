@@ -1,0 +1,726 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useFirestore } from "@/firebase";
+// We will use a custom API route, so we don't need these client-side storage imports
+// import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"; 
+import { doc, type DocumentData, addDoc, collection, serverTimestamp, getDoc, query, where, getDocs,getCountFromServer } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Play, Send, AlertCircle, BookOpen, Code, Terminal, BrainCircuit, CheckCircle, XCircle, ShieldAlert, ListChecks } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { useParams } from 'next/navigation';
+import { analyzeStudentActivity } from '@/ai/ai-anti-cheating';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { useUser } from '@/firebase/auth/use-user';
+
+
+// Define types inline as they are no longer exported from the 'use server' file
+type AIAntiCheatingInput = {
+    studentCode: string;
+    examDetails: string;
+    testCases: string;
+    allowInteractiveApis: boolean;
+    // We remove videoDataUri and screenDataUri from here as we won't send them to the AI
+};
+
+type AIAntiCheatingOutput = {
+    report: string;
+    riskAssessment: string;
+    testCaseResults: Array<{
+        input: any;
+        expectedOutput: any;
+        status: 'passed' | 'failed';
+        actualOutput?: any;
+    }>;
+    grade: number;
+    developedSkills: string[];
+};
+
+// Feature flag to quickly enable/disable screen recording
+const ENABLE_RECORDING = false;
+
+export default function SessionIDEPage() {
+  const params = useParams();
+  const challengeId = Array.isArray(params.id) ? params.id[0] : params.id;
+  
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+
+  const [code, setCode] = useState('');
+  const [output, setOutput] = useState('');
+  const [isRunning, setIsRunning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AIAntiCheatingOutput | null>(null);
+  
+  const [challenge, setChallenge] = useState<DocumentData | null>(null);
+  const [isLoadingChallenge, setIsLoadingChallenge] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [previousAttempts, setPreviousAttempts] = useState(0);
+  const [loadingAttempts, setLoadingAttempts] = useState(true);
+  
+  // Screen recording state and refs
+  const [isRecording, setIsRecording] = useState(false);
+  const [hasScreenPermission, setHasScreenPermission] = useState(!ENABLE_RECORDING); // Default to true if recording is off
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+
+  useEffect(() => {
+    if (!firestore || !challengeId) {
+      setIsLoadingChallenge(false);
+      setLoadingAttempts(false);
+      return;
+    }
+    
+    setIsLoadingChallenge(true);
+    const challengeRef = doc(firestore, 'challenges', challengeId);
+    
+    const fetchChallenge = async () => {
+        try {
+            const docSnap = await getDoc(challengeRef);
+            if (docSnap.exists()) {
+                setChallenge(docSnap.data());
+            } else {
+                setError('No se pudo encontrar el desafío solicitado.');
+            }
+        } catch (err) {
+            console.error('Error cargando documento:', err);
+            setError('Error al cargar el desafío desde la base de datos.');
+        } finally {
+            setIsLoadingChallenge(false);
+        }
+    };
+    
+    fetchChallenge();
+
+  }, [firestore, challengeId]);
+  
+  useEffect(() => {
+    if (!firestore || !user || !challengeId) return;
+
+    setLoadingAttempts(true);
+    const submissionsQuery = query(
+      collection(firestore, 'submissions'),
+      where('studentId', '==', user.uid),
+      where('challengeId', '==', challengeId)
+    );
+    
+    getCountFromServer(submissionsQuery).then(snapshot => {
+      setPreviousAttempts(snapshot.data().count);
+      setLoadingAttempts(false);
+    }).catch(err => {
+      console.error("Error fetching attempts count:", err);
+      setLoadingAttempts(false);
+    });
+
+  }, [firestore, user, challengeId]);
+  
+  const testCases = React.useMemo(() => {
+    if (!challenge?.testCases) return [];
+    try {
+        return JSON.parse(challenge.testCases);
+    } catch {
+        return [];
+    }
+  }, [challenge]);
+
+  useEffect(() => {
+    if (!challenge) return;
+    
+    const challengeTitle = challenge.title || 'Desafío sin título';
+    const language = challenge.language || 'javascript';
+    let template = `// Desafío: ${challengeTitle}\n// Lenguaje: ${language}\n\n// Escribe tu código aquí\n`;
+
+    switch (language) {
+      case 'javascript':
+      case 'typescript':
+        template = `/**\n * ${challengeTitle}\n */\nfunction solve() {\n  // Escribe tu código aquí\n  \n}\n`;
+        break;
+      case 'python':
+        template = `# ${challengeTitle}\n\ndef solve():\n    # Escribe tu código aquí\n    pass\n`;
+        break;
+      case 'java':
+        template = `// ${challengeTitle}\n\nclass Solution {\n    public static void main(String[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
+        break;
+      case 'sql':
+      case 'mysql':
+        template = `/*\n * ${challengeTitle}\n * \n * Escribe tu consulta SQL aquí.\n * Por ejemplo: SELECT * FROM users;\n */\n\n`;
+        break;
+      case 'csharp':
+          template = `// ${challengeTitle}\n\nusing System;\n\npublic class Program {\n    public static void Main(string[] args) {\n        // Escribe tu código aquí\n    }\n}\n`;
+          break;
+      case 'cpp':
+          template = `// ${challengeTitle}\n\n#include <iostream>\n\nint main() {\n    // Escribe tu código aquí\n    return 0;\n}\n`;
+          break;
+      case 'go':
+          template = `// ${challengeTitle}\n\npackage main\n\nimport "fmt"\n\nfunc main() {\n    // Escribe tu código aquí\n}\n`;
+          break;
+      case 'rust':
+          template = `// ${challengeTitle}\n\nfn main() {\n    // Escribe tu código aquí\n}\n`;
+          break;
+      case 'swift':
+          template = `// ${challengeTitle}\n\nimport Foundation\n\n// Escribe tu código aquí\n`;
+          break;
+      case 'kotlin':
+          template = `// ${challengeTitle}\n\nfun main() {\n    // Escribe tu código aquí\n}\n`;
+          break;
+      case 'php':
+          template = `<?php\n\n// ${challengeTitle}\n\n// Escribe tu código aquí\n\n?>`;
+          break;
+      case 'ruby':
+          template = `# ${challengeTitle}\n\n# Escribe tu código aquí\n`;
+          break;
+    }
+    setCode(template);
+  }, [challenge]);
+  
+  const canAttempt = challenge?.maxAttempts > 0 ? previousAttempts < challenge.maxAttempts : true;
+
+  useEffect(() => {
+    if (!challengeId || !canAttempt || !ENABLE_RECORDING) return;
+
+    const startScreenRecording = async () => {
+      if (!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === 'undefined') {
+          const message = "Tu navegador no es compatible con la función de grabación de pantalla, que es obligatoria para este desafío. Por favor, utiliza una versión reciente de Chrome, Firefox o Edge.";
+          setError(message);
+          setHasScreenPermission(false);
+          toast({
+            variant: "destructive",
+            title: "Navegador no Compatible",
+            description: message,
+            duration: 10000,
+          });
+          return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: "always" },
+          audio: false,
+        });
+        setHasScreenPermission(true);
+        screenStreamRef.current = stream;
+        recordedChunksRef.current = []; // Reset chunks
+
+        // Use a more compatible MIME type and set bitrate to reduce file size
+        const options = { 
+          mimeType: 'video/webm; codecs=vp8',
+          videoBitsPerSecond: 500000, // ~500 kbps, reduces file size significantly
+        };
+        const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(options.mimeType) ? options : undefined);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunksRef.current.push(event.data);
+          }
+        };
+
+        recorder.start();
+        setIsRecording(true);
+
+        stream.getVideoTracks()[0].onended = () => {
+            if (mediaRecorderRef.current?.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+            setIsRecording(false);
+        };
+
+      } catch (err) {
+        console.error("Error starting screen recording:", err);
+        setHasScreenPermission(false);
+        setError("La grabación de pantalla es obligatoria para continuar. Por favor, recarga y concede el permiso.");
+        toast({
+          variant: "destructive",
+          title: "Permiso de Pantalla Denegado",
+          description: "La grabación de pantalla es necesaria para enviar el desafío.",
+          duration: 10000,
+        });
+      }
+    };
+
+    startScreenRecording();
+
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [challengeId, canAttempt, toast]);
+
+
+  const handleRunCode = () => {
+    setIsRunning(true);
+    setOutput('Ejecutando simulación...');
+
+    // Simulate running against the first test case
+    setTimeout(() => {
+        if (testCases.length > 0) {
+            const firstCase = testCases[0];
+            const simulatedOutput = `--- Simulación de Ejecución (no es una ejecución real) ---\n\nInput del primer caso de prueba:\n${JSON.stringify(firstCase.input, null, 2)}\n\nSalida Esperada para este caso:\n${JSON.stringify(firstCase.expectedOutput, null, 2)}\n\n(El resultado final será evaluado con todos los casos al momento de enviar.)`;
+            setOutput(simulatedOutput);
+        } else {
+            setOutput('No hay casos de prueba definidos para este desafío. La evaluación se basará únicamente en el análisis de la IA.');
+        }
+        setIsRunning(false);
+        toast({
+            title: 'Simulación Completa',
+            description: 'Se ha mostrado una simulación con el primer caso de prueba.',
+        });
+    }, 500);
+  };
+  
+  const handleSubmitCode = async () => {
+    if (!challenge || !user || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se ha cargado ningún desafío, usuario o conexión para evaluar.' });
+        return;
+    }
+    
+    const maxAttempts = challenge.maxAttempts;
+    if (maxAttempts > 0 && previousAttempts >= maxAttempts) {
+        toast({ variant: 'destructive', title: 'Límite de Intentos Alcanzado', description: `Has alcanzado el máximo de ${maxAttempts} intentos.` });
+        return;
+    }
+
+    if (ENABLE_RECORDING && !hasScreenPermission) {
+        toast({ variant: 'destructive', title: 'Permiso Requerido', description: 'No puedes enviar sin conceder permiso para grabar la pantalla.' });
+        return;
+    }
+
+    setIsSubmitting(true);
+    setAnalysisResult(null);
+    toast({
+        title: 'Iniciando proceso de envío...',
+        description: 'Tu código está siendo procesado.'
+    });
+
+    const getScreenRecordingBlob = (): Promise<Blob | undefined> => {
+        return new Promise((resolve) => {
+             const stopAndResolve = () => {
+                if (recordedChunksRef.current.length === 0) {
+                    resolve(undefined);
+                    return;
+                }
+                const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+                resolve(blob);
+                if (screenStreamRef.current) {
+                    screenStreamRef.current.getTracks().forEach(track => track.stop());
+                }
+            };
+
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+                mediaRecorderRef.current.onstop = stopAndResolve;
+                mediaRecorderRef.current.stop();
+            } else {
+                 stopAndResolve();
+            }
+        });
+    };
+
+    try {
+        let screenRecordingUrl: string | null = null;
+
+        if (ENABLE_RECORDING) {
+            const screenRecordingBlob = await getScreenRecordingBlob();
+            if (screenRecordingBlob) {
+                toast({
+                    title: 'Subiendo grabación...',
+                    description: 'Este proceso puede tardar unos segundos. Por favor, espera.',
+                });
+                
+                const uniqueFileName = `${user.uid}-${challengeId}-${Date.now()}.webm`;
+                const formData = new FormData();
+                formData.append('file', screenRecordingBlob, uniqueFileName);
+                formData.append('fileName', uniqueFileName);
+
+                const response = await fetch('/api/upload-recording', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Falló la subida de la grabación al servidor.');
+                }
+
+                const { url } = await response.json();
+                screenRecordingUrl = url;
+
+                 toast({
+                    title: 'Grabación subida con éxito',
+                    description: 'Ahora se analizará tu código.',
+                });
+            }
+        }
+
+        const input: AIAntiCheatingInput = {
+            studentCode: code,
+            examDetails: `Desafío: ${challenge.title}. Descripción: ${challenge.description}`,
+            testCases: challenge.testCases || '[]',
+            allowInteractiveApis: challenge.allowInteractiveApis || false,
+        };
+        
+        const result = await analyzeStudentActivity(input);
+        setAnalysisResult(result);
+
+        const submissionData = {
+          studentId: user.uid,
+          challengeId: challengeId,
+          challengeTitle: challenge.title,
+          submissionDate: serverTimestamp(),
+          code,
+          grade: result.grade,
+          report: result.report,
+          riskAssessment: result.riskAssessment,
+          testCaseResults: JSON.stringify(result.testCaseResults),
+          developedSkills: result.developedSkills,
+          screenRecordingUri: screenRecordingUrl, // Store the URL from the API response
+        };
+        
+        await addDoc(collection(firestore, 'submissions'), submissionData);
+        
+        setPreviousAttempts(prev => prev + 1);
+
+        toast({
+            title: '¡Análisis y Guardado Completado!',
+            description: 'El informe de la IA está listo y tu sumisión ha sido guardada.',
+        });
+    } catch (err: any) {
+        console.error('Error durante el análisis o guardado:', err);
+        toast({
+            variant: 'destructive',
+            title: 'Error en el Proceso',
+            description: err.message || 'No se pudo completar el análisis o guardado del código.',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    toast({
+      variant: 'destructive',
+      title: 'Acción no permitida',
+      description: 'No está permitido pegar código en el editor.',
+    });
+  };
+
+  const noMoreAttempts = challenge?.maxAttempts > 0 && previousAttempts >= challenge.maxAttempts;
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (noMoreAttempts || !hasScreenPermission) {
+      return;
+    }
+    const { value, selectionStart, selectionEnd } = e.currentTarget;
+
+    // Handle Tab key
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const newCode =
+        value.substring(0, selectionStart) +
+        '  ' + // Using 2 spaces for indentation
+        value.substring(selectionEnd);
+      
+      setCode(newCode);
+      
+      // Update cursor position after state update
+      setTimeout(() => {
+        if (textAreaRef.current) {
+          textAreaRef.current.selectionStart = textAreaRef.current.selectionEnd = selectionStart + 2;
+        }
+      }, 0);
+      return;
+    }
+
+    // Handle Enter key for auto-indentation
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // Find indentation of the current line
+      const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+      const currentLine = value.substring(lineStart).split('\n')[0];
+      const indentation = currentLine.match(/^\s*/)?.[0] || '';
+      
+      // Check for extra indentation if the line ends with ':' or '{'
+      const contentBeforeCursor = value.substring(0, selectionStart);
+      const lineContentBeforeCursor = contentBeforeCursor.substring(contentBeforeCursor.lastIndexOf('\n') + 1);
+      const trimmedLineContent = lineContentBeforeCursor.trim();
+      let extraIndent = '';
+      if (trimmedLineContent.endsWith(':') || trimmedLineContent.endsWith('{')) {
+        extraIndent = '  ';
+      }
+
+      const newCode =
+        value.substring(0, selectionStart) +
+        '\n' +
+        indentation +
+        extraIndent +
+        value.substring(selectionEnd);
+        
+      setCode(newCode);
+
+      // Update cursor position
+      setTimeout(() => {
+        if (textAreaRef.current) {
+          textAreaRef.current.selectionStart = 
+          textAreaRef.current.selectionEnd = 
+          selectionStart + 1 + indentation.length + extraIndent.length;
+        }
+      }, 0);
+      return;
+    }
+  };
+
+
+  if (isLoadingChallenge || !challengeId || loadingAttempts) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+        <div className="w-full max-w-4xl space-y-4 p-4">
+          <Skeleton className="h-12 w-1/3" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-lg">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No se puede iniciar el desafío</AlertTitle>
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
+  if (!challenge) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-lg">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error: Desafío no Encontrado</AlertTitle>
+          <AlertDescription>
+            No se pudo cargar el desafío solicitado. Puede que haya sido eliminado o el ID sea incorrecto.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const getRiskBadgeVariant = (risk: string | undefined) => {
+    switch (risk?.toLowerCase()) {
+        case 'alto': return 'destructive';
+        case 'medio': return 'secondary';
+        case 'bajo':
+        default: return 'default';
+    }
+  };
+
+  const safeParseTestCaseResults = (results: any) => {
+    if (typeof results === 'string') {
+        try {
+            return JSON.parse(results);
+        } catch {
+            return [];
+        }
+    }
+    return Array.isArray(results) ? results : [];
+  };
+  
+  const remainingAttempts = challenge.maxAttempts > 0 ? challenge.maxAttempts - previousAttempts : Infinity;
+  
+  const testCaseResultsToDisplay = safeParseTestCaseResults(analysisResult?.testCaseResults);
+
+  return (
+    <div className="h-[calc(100vh-4rem)] w-full flex flex-col">
+      <header className="flex h-14 items-center justify-between border-b bg-muted/40 px-4 lg:px-6 shrink-0">
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-lg font-semibold truncate">{challenge.title || 'Desafío'}</h1>
+           {isRecording && ENABLE_RECORDING && (
+            <div className="flex items-center gap-1.5 ml-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
+                <span className="text-xs text-red-500 font-medium">Grabando</span>
+            </div>
+          )}
+        </div>
+         <div className="flex items-center gap-2">
+            {challenge.maxAttempts > 0 && (
+                <Badge variant={noMoreAttempts ? "destructive" : "secondary"}>
+                   Intentos restantes: {Math.max(0, remainingAttempts)}
+                </Badge>
+            )}
+          <Button onClick={handleRunCode} disabled={isRunning || noMoreAttempts} variant="secondary">
+            <Play className="mr-2 h-4 w-4"/>
+            {isRunning ? 'Ejecutando...' : 'Ejecutar'}
+          </Button>
+          <Button onClick={handleSubmitCode} disabled={isSubmitting || noMoreAttempts || !hasScreenPermission}>
+            <Send className="mr-2 h-4 w-4"/>
+            {isSubmitting ? 'Evaluando...' : 'Enviar y Calificar'}
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto">
+        <ResizablePanelGroup direction="horizontal" className="min-h-full">
+          <ResizablePanel defaultSize={40} minSize={25}>
+            <div className="flex h-full flex-col p-4 gap-4 overflow-auto">
+              <Card className="flex-1 flex flex-col">
+                <CardHeader>
+                  <CardTitle>Descripción del Desafío</CardTitle>
+                </CardHeader>
+                <CardContent className="prose prose-sm dark:prose-invert max-w-none flex-1">
+                  <p>{challenge.description || 'Sin descripción disponible'}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ListChecks className="h-5 w-5" />
+                        Casos de Prueba
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {testCases.length > 0 ? (
+                        <div className="space-y-3">
+                            {testCases.map((tc: any, index: number) => (
+                                <div key={index} className="text-xs font-mono bg-muted p-3 rounded-md">
+                                    <p><span className="font-semibold">Input:</span> {JSON.stringify(tc.input)}</p>
+                                    <p><span className="font-semibold">Output Esperado:</span> {JSON.stringify(tc.expectedOutput)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No se han definido casos de prueba para este desafío.</p>
+                    )}
+                </CardContent>
+              </Card>
+            </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={60} minSize={30}>
+            <ResizablePanelGroup direction="vertical">
+              <ResizablePanel defaultSize={70} minSize={30}>
+                <div className="flex h-full flex-col p-4">
+                  <h2 className="text-sm font-semibold flex items-center gap-2 mb-2">
+                    <Code className="w-4 h-4"/>
+                    Editor de Código ({challenge.language || 'desconocido'})
+                  </h2>
+                  <Textarea 
+                    ref={textAreaRef}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    onPaste={handlePaste}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Escribe tu código aquí..."
+                    className="flex-1 font-mono text-sm resize-none"
+                    disabled={noMoreAttempts || !hasScreenPermission}
+                  />
+                </div>
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={15}>
+                <div className="flex h-full flex-col p-4">
+                  <h2 className="text-sm font-semibold flex items-center gap-2 mb-2">
+                    <Terminal className="w-4 h-4" />
+                    Salida
+                  </h2>
+                  <div className="flex-1 rounded-md bg-muted p-4 overflow-auto">
+                    <pre className="text-sm font-mono whitespace-pre-wrap">{output || 'La salida de tu código aparecerá aquí.'}</pre>
+                  </div>
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+
+        {analysisResult && (
+            <div className="p-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                            <BrainCircuit className="text-primary"/>
+                            Informe de Análisis de IA
+                        </CardTitle>
+                        <div className="flex items-center justify-between pt-2">
+                          <CardDescription>Resultados de la evaluación de tu código por parte de la IA.</CardDescription>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-medium text-muted-foreground">Calificación:</span>
+                            <span className="text-2xl font-bold text-primary">{analysisResult.grade}/5</span>
+                          </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                                <ShieldAlert />
+                                Evaluación de Riesgo de Trampa
+                            </h3>
+                            <Badge variant={getRiskBadgeVariant(analysisResult.riskAssessment)}>{analysisResult.riskAssessment || 'Indeterminado'}</Badge>
+                        </div>
+                        <Separator />
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2">Informe Detallado</h3>
+                            <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans">{analysisResult.report}</pre>
+                        </div>
+                         <Separator />
+                        <div>
+                            <h3 className="font-semibold text-lg mb-2">Habilidades Demostradas</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {analysisResult.developedSkills.map((skill, index) => (
+                                    <Badge key={index} variant="secondary">{skill}</Badge>
+                                ))}
+                            </div>
+                        </div>
+                        <Separator />
+                        <div>
+                            <h3 className="font-semibold text-lg mb-4">Resultados de los Casos de Prueba</h3>
+                            <div className="space-y-4">
+                                {testCaseResultsToDisplay.map((result: any, index: number) => (
+                                    <div key={index} className={`p-4 rounded-md border ${result.status === 'passed' ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-700' : 'border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-700'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <p className="font-semibold">Caso de Prueba #{index + 1}</p>
+                                            {result.status === 'passed' ? (
+                                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"><CheckCircle className="mr-1.5 h-4 w-4"/>Pasó</Badge>
+                                            ) : (
+                                                <Badge variant="destructive"><XCircle className="mr-1.5 h-4 w-4"/>Falló</Badge>
+                                            )}
+                                        </div>
+                                        <div className="mt-3 text-xs font-mono text-muted-foreground space-y-2">
+                                            <p><span className="font-semibold text-foreground">Input:</span> {JSON.stringify(result.input)}</p>
+                                            <p><span className="font-semibold text-foreground">Salida Esperada:</span> {JSON.stringify(result.expectedOutput)}</p>
+                                            {result.actualOutput !== undefined &&
+                                                <p><span className="font-semibold text-foreground">Salida Real (según la IA):</span> {JSON.stringify(result.actualOutput)}</p>
+                                            }
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,598 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the AcademiaCode platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., Admin, Instructor, Student)."
+        },
+        "groupId": {
+            "type": "string",
+            "description": "Reference to the Group the student belongs to. (Relationship: Group 1:N User)"
+        },
+        "managedGroupIds": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "For teachers, an array of group IDs they are allowed to manage. (Relationship: User N:M Group)"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "role"
+      ]
+    },
+    "Group": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Group",
+      "type": "object",
+      "description": "Represents a group or class of students.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Group entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the group (e.g., 'ADS1')."
+        },
+        "schedule": {
+          "type": "object",
+          "description": "The structured schedule for the group.",
+          "properties": {
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Days of the week for the class."
+            },
+            "startTime": {
+              "type": "string",
+              "format": "time",
+              "description": "Start time for the class."
+            },
+            "endTime": {
+              "type": "string",
+              "format": "time",
+              "description": "End time for the class."
+            }
+          },
+          "required": ["days", "startTime", "endTime"]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "schedule"
+      ]
+    },
+    "Course": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Course",
+      "type": "object",
+      "description": "Represents a course offered on the AcademiaCode platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Course entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the course."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the course."
+        },
+        "instructorId": {
+          "type": "string",
+          "description": "Reference to the Instructor (User) who teaches the course. (Relationship: User 1:N Course)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "instructorId"
+      ]
+    },
+    "Challenge": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Challenge",
+      "type": "object",
+      "description": "Represents a coding challenge or problem.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Challenge entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the challenge."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the problem, constraints, and examples."
+        },
+        "language": {
+          "type": "string",
+          "description": "The primary programming language for the challenge (e.g., 'javascript', 'python')."
+        },
+        "category": {
+          "type": "string",
+          "description": "A category for classifying the challenge (e.g., 'Week 1', 'Arrays', 'Beginner')."
+        },
+        "testCases": {
+          "type": "string",
+          "description": "A JSON string representing an array of test cases for the challenge."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "published", "archived"],
+          "description": "The status of the challenge."
+        },
+        "maxAttempts": {
+          "type": "number",
+          "description": "Optional. Maximum number of submission attempts allowed. 0 or null means infinite."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The UID of the user who created the challenge."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the challenge was created."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "language",
+        "category",
+        "status",
+        "createdBy",
+        "createdAt"
+      ]
+    },
+    "Assignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Assignment",
+      "type": "object",
+      "description": "Links a Challenge to a student or group with a due date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Assignment entity."
+        },
+        "challengeId": {
+          "type": "string",
+          "description": "Reference to the Challenge being assigned."
+        },
+        "targetId": {
+          "type": "string",
+          "description": "The ID of the target, which can be a groupId or a student's userId."
+        },
+        "targetType": {
+          "type": "string",
+          "enum": ["group", "student"],
+          "description": "Specifies whether the target is a group or a student."
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "The deadline for the assignment.",
+          "format": "date-time"
+        },
+        "assignedBy": {
+          "type": "string",
+          "description": "The UID of the teacher or admin who created the assignment."
+        }
+      },
+      "required": [
+        "id",
+        "challengeId",
+        "targetId",
+        "targetType",
+        "dueDate",
+        "assignedBy"
+      ]
+    },
+    "Submission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Submission",
+      "type": "object",
+      "description": "Represents a student's submission for a challenge, including the AI analysis.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Submission entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the Student (User) who submitted."
+        },
+        "challengeId": {
+          "type": "string",
+          "description": "Reference to the Challenge that was submitted."
+        },
+        "challengeTitle": {
+          "type": "string",
+          "description": "Denormalized title of the challenge for easier display."
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "Date when the submission was made.",
+          "format": "date-time"
+        },
+        "code": {
+          "type": "string",
+          "description": "The code submitted by the student."
+        },
+        "grade": {
+          "type": "number",
+          "description": "The grade (1-5) assigned by the AI."
+        },
+        "report": {
+          "type": "string",
+          "description": "The detailed report from the AI analysis."
+        },
+        "riskAssessment": {
+          "type": "string",
+          "description": "The cheating risk assessment from the AI (Low, Medium, High)."
+        },
+        "testCaseResults": {
+          "type": "string",
+          "description": "A JSON string of the test case results from the AI."
+        },
+        "developedSkills": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "An array of skills identified by the AI."
+        },
+        "screenRecordingUri": {
+          "type": "string",
+          "format": "uri",
+          "description": "A data URI of the student's screen recording during the session."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "challengeId",
+        "challengeTitle",
+        "submissionDate",
+        "code",
+        "grade"
+      ]
+    },
+    "Testcase": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Testcase",
+      "type": "object",
+      "description": "Represent the test cases that the teacher creates to test if a submission for and assignment is correct.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Testcase entity."
+        },
+        "input": {
+          "type": "string",
+          "description": "The input for the test case"
+        },
+        "expectedOutput": {
+          "type": "string",
+          "description": "The expected output for the test case"
+        },
+        "assignmentId": {
+          "type": "string",
+          "description": "Reference to the Assignment this testcase belongs to. (Relationship: Assignment 1:N Testcase)"
+        }
+      },
+      "required": [
+        "id",
+        "input",
+        "expectedOutput",
+        "assignmentId"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Payment entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who made the payment. (Relationship: User 1:N Payment)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the payment."
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date when the payment was made.",
+          "format": "date-time"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Method of payment (e.g., Credit Card, PayPal)."
+        },
+        "subscriptionId": {
+          "type": "string",
+          "description": "Reference to the Subscription to which the payment is associated. (Relationship: Subscription 1:N Payment)"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "amount",
+        "paymentDate",
+        "paymentMethod"
+      ]
+    },
+    "Subscription": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Subscription",
+      "type": "object",
+      "description": "Represents a user's subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Subscription entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who owns the subscription. (Relationship: User 1:N Subscription)"
+        },
+        "planName": {
+          "type": "string",
+          "description": "Name of the subscription plan (e.g., Basic, Premium)."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Date when the subscription started.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "Date when the subscription ends.",
+          "format": "date-time"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the subscription plan."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "planName",
+        "startDate",
+        "endDate",
+        "price"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Each document is identified by a unique user ID. This collection now includes a 'groupId' field for students and a 'managedGroupIds' array for teachers.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/groups/{groupId}",
+        "definition": {
+          "entityName": "Group",
+          "schema": {
+            "$ref": "#/backend/entities/Group"
+          },
+          "description": "Stores student groups or classes.",
+          "params": [
+            {
+              "name": "groupId",
+              "description": "The unique identifier of the group."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/challenges/{challengeId}",
+        "definition": {
+          "entityName": "Challenge",
+          "schema": {
+            "$ref": "#/backend/entities/Challenge"
+          },
+          "description": "Stores all coding challenges available on the platform. Includes a 'category' for classification.",
+          "params": [
+            {
+              "name": "challengeId",
+              "description": "The unique identifier of the challenge."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}",
+        "definition": {
+          "entityName": "Course",
+          "schema": {
+            "$ref": "#/backend/entities/Course"
+          },
+          "description": "Stores courses offered on the AcademiaCode platform. Includes denormalized 'instructorId' for authorization independence.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier of the course."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/assignments/{assignmentId}",
+        "definition": {
+          "entityName": "Assignment",
+          "schema": {
+            "$ref": "#/backend/entities/Assignment"
+          },
+          "description": "Stores assignments for each course.  Located as a subcollection of 'courses'. Includes denormalized 'courseId' for authorization independence.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier of the course."
+            },
+            {
+              "name": "assignmentId",
+              "description": "The unique identifier of the assignment."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/assignments/{assignmentId}",
+        "definition": {
+          "entityName": "Assignment",
+          "schema": { "$ref": "#/backend/entities/Assignment" },
+          "description": "Stores assignments linking challenges to groups or students.",
+          "params": [
+            {
+              "name": "assignmentId",
+              "description": "The unique identifier of the assignment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/submissions/{submissionId}",
+        "definition": {
+          "entityName": "Submission",
+          "schema": {
+            "$ref": "#/backend/entities/Submission"
+          },
+          "description": "Stores submissions made by students. This is a root collection for simplified querying by teachers/admins.",
+          "params": [
+            {
+              "name": "submissionId",
+              "description": "The unique identifier of the submission."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/assignments/{assignmentId}/testcases/{testcaseId}",
+        "definition": {
+          "entityName": "Testcase",
+          "schema": {
+            "$ref": "#/backend/entities/Testcase"
+          },
+          "description": "Stores test cases for each assignment. Located as a subcollection of 'assignments'. Includes denormalized 'assignmentId' for authorization independence.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier of the course."
+            },
+            {
+              "name": "assignmentId",
+              "description": "The unique identifier of the assignment."
+            },
+            {
+              "name": "testcaseId",
+              "description": "The unique identifier of the test case."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment information for each user. Located as a subcollection of 'users'. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "paymentId",
+              "description": "The unique identifier of the payment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/subscriptions/{subscriptionId}",
+        "definition": {
+          "entityName": "Subscription",
+          "schema": {
+            "$ref": "#/backend/entities/Subscription"
+          },
+          "description": "Stores subscription information for each user. Located as a subcollection of 'users'. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "subscriptionId",
+              "description": "The unique identifier of the subscription."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support AcademiaCode's core features, including secure code execution, collaborative coding, and academic management, while adhering to the principles of Authorization Independence, Structural Segregation, and Access Modeling. The structure prioritizes clarity, security, and scalability.\n\n**Authorization Independence:**\n\n*   Ownership and membership are explicitly modeled in each collection.  For example, the `courses` collection includes the `instructorId`. This denormalization avoids the need for `get()` calls in security rules to validate ownership or membership, enabling atomic operations and simplifying security rule design.\n\n**Structural Segregation:**\n\n*   The data is separated into collections based on entity type (e.g., `users`, `courses`, `assignments`, `submissions`, `testcases`, `payments`, `subscriptions`). This ensures that each collection has a homogeneous security posture and simplifies rule definition.  User-owned data (e.g., subscriptions, payments) are stored under the `/users/{userId}` path, providing clear ownership and access control. Submissions are now a root collection to simplify querying for teachers and admins, while still containing a `studentId` for ownership checks.\n\n**Access Modeling:**\n\n*   **Private Data:** User profiles are stored under `/users/{userId}`, ensuring that only the user can access their own data.\n*   **Hierarchical Ownership:** The structure leverages hierarchical paths to represent relationships. For example, `courses` are owned by `users` (instructors), `assignments` are owned by `courses`, and `testcases` are owned by `assignments`. This path-based ownership simplifies security rules and data integrity.\n\n**QAPs (Rules are not Filters):**\n\n*   The structure supports secure list operations by clearly defining ownership and access rights through path-based ownership. For example, listing courses under a specific instructor (`/users/{instructorId}/courses/{courseId}`) or assignments for a course (`/courses/{courseId}/assignments/{assignmentId}`).\n\n*   By ensuring that authorization data (e.g., `instructorId` in `courses`) is present in each document, rules can efficiently validate access without querying other documents, enabling secure and efficient list operations.\n"
+  }
+}
