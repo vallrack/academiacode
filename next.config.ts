@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+const path = require('path');
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -30,7 +31,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-   webpack: (config, { isServer }) => {
+   webpack: (config, { isServer, dev }) => {
     // Exclude three.js from server-side bundle
     if (isServer) {
       config.externals.push('three');
@@ -42,6 +43,13 @@ const nextConfig: NextConfig = {
       test: /\.(glsl|vs|fs|vert|frag)$/,
       use: ['raw-loader', 'glslify-loader'],
     });
+
+    if (!dev) {
+      config.module.rules.push({
+        test: path.resolve(__dirname, 'src/ai/dev.ts'),
+        use: 'null-loader',
+      });
+    }
 
     return config;
   },
