@@ -43,6 +43,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 export const dynamic = 'force-dynamic';
 
 type ChallengeStatus = "draft" | "published" | "archived";
+type ChallengeDifficulty = "Básico" | "Medio" | "Avanzado";
 
 type Challenge = {
   id: string;
@@ -50,6 +51,7 @@ type Challenge = {
   language: string;
   category: string;
   status: ChallengeStatus;
+  difficulty: ChallengeDifficulty;
   createdBy: string;
 };
 
@@ -64,6 +66,8 @@ const languages = [
   "typescript", "go", "rust", "swift", "kotlin", "php", "ruby"
 ];
 
+const difficulties: ChallengeDifficulty[] = ["Básico", "Medio", "Avanzado"];
+
 export default function ChallengesPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -76,6 +80,7 @@ export default function ChallengesPage() {
     const [loadingUsers, setLoadingUsers] = useState(true);
     
     const [filterLanguage, setFilterLanguage] = useState<string>('');
+    const [filterDifficulty, setFilterDifficulty] = useState<string>('');
 
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [challengeToDelete, setChallengeToDelete] = useState<Challenge | null>(null);
@@ -133,12 +138,14 @@ export default function ChallengesPage() {
     
     const usersMap = useMemo(() => new Map(users.map(u => [u.id, u.displayName])), [users]);
 
+    const filteredChallenges = useMemo(() => {
+        return challenges
+            .filter(c => !filterLanguage || c.language.toLowerCase() === filterLanguage.toLowerCase())
+            .filter(c => !filterDifficulty || c.difficulty === filterDifficulty);
+    }, [challenges, filterLanguage, filterDifficulty]);
+    
     const groupedChallenges = useMemo(() => {
-        const challengesToGroup = filterLanguage
-            ? challenges.filter(c => c.language.toLowerCase() === filterLanguage.toLowerCase())
-            : challenges;
-
-        return challengesToGroup.reduce((acc, challenge) => {
+        return filteredChallenges.reduce((acc, challenge) => {
             const { language } = challenge;
             if (!acc[language]) {
                 acc[language] = [];
@@ -146,26 +153,26 @@ export default function ChallengesPage() {
             acc[language].push(challenge);
             return acc;
         }, {} as Record<string, Challenge[]>);
-    }, [challenges, filterLanguage]);
+    }, [filteredChallenges]);
 
     const isLoadingData = loading || loadingUsers;
     const hasChallenges = !isLoadingData && Object.keys(groupedChallenges).length > 0;
 
-    const handleStatusChange = async (challengeId: string, newStatus: ChallengeStatus) => {
+    const handleChallengeUpdate = async (challengeId: string, data: Partial<Challenge>) => {
         if (!firestore) return;
         const challengeRef = doc(firestore, 'challenges', challengeId);
         try {
-            await updateDoc(challengeRef, { status: newStatus });
+            await updateDoc(challengeRef, data as any);
             toast({
-                title: "Estado Actualizado",
-                description: `El desafío ha sido marcado como ${statusMap[newStatus]}.`,
+                title: "Desafío Actualizado",
+                description: `El desafío ha sido actualizado correctamente.`,
             });
         } catch (error) {
-            console.error("Error updating status: ", error);
+            console.error("Error updating challenge: ", error);
             toast({
                 variant: "destructive",
                 title: "Error al Actualizar",
-                description: "No se pudo cambiar el estado del desafío.",
+                description: "No se pudo actualizar el desafío.",
             });
         }
     };
@@ -185,7 +192,7 @@ export default function ChallengesPage() {
             await deleteDoc(challengeRef);
             toast({
                 title: "Desafío Eliminado",
-                description: `El desafío "${challengeToDelete.title}" ha sido eliminado.`,
+                description: `El desafío "${challengeToDelete.title}" ha sido eliminado.`
             });
         } catch (error) {
             console.error("Error deleting challenge: ", error);
@@ -241,8 +248,19 @@ export default function ChallengesPage() {
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="filter-difficulty">Filtrar por Dificultad</Label>
+                        <Select value={filterDifficulty} onValueChange={setFilterDifficulty}>
+                            <SelectTrigger id="filter-difficulty">
+                                <SelectValue placeholder="Todas las dificultades" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {difficulties.map(diff => <SelectItem key={diff} value={diff}>{diff}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="flex items-end">
-                      <Button variant="outline" onClick={() => setFilterLanguage('')} className="w-full">Limpiar Filtro</Button>
+                      <Button variant="outline" onClick={() => { setFilterLanguage(''); setFilterDifficulty(''); }} className="w-full">Limpiar Filtros</Button>
                     </div>
                 </div>
             </div>
@@ -276,6 +294,7 @@ export default function ChallengesPage() {
                                                 <TableRow>
                                                     <TableHead>Título</TableHead>
                                                     <TableHead className="hidden sm:table-cell">Categoría</TableHead>
+                                                    <TableHead className="hidden md:table-cell">Dificultad</TableHead>
                                                     <TableHead className="hidden md:table-cell">Creado por</TableHead>
                                                     <TableHead className="hidden lg:table-cell">Estado</TableHead>
                                                     <TableHead className="text-right">Acciones</TableHead>
@@ -286,6 +305,9 @@ export default function ChallengesPage() {
                                                     <TableRow key={challenge.id}>
                                                         <TableCell className="font-medium">{challenge.title}</TableCell>
                                                         <TableCell className="hidden sm:table-cell">{challenge.category}</TableCell>
+                                                        <TableCell className="hidden md:table-cell">
+                                                          {challenge.difficulty ? <Badge variant="outline">{challenge.difficulty}</Badge> : 'N/A'}
+                                                        </TableCell>
                                                         <TableCell className="hidden md:table-cell text-muted-foreground">{usersMap.get(challenge.createdBy) || 'Desconocido'}</TableCell>
                                                         <TableCell className="hidden lg:table-cell">
                                                             <Badge variant={getStatusBadgeVariant(challenge.status)}>
@@ -294,7 +316,7 @@ export default function ChallengesPage() {
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <div className="flex items-center justify-end gap-2">
-                                                                <Button variant="outline" size="icon" onClick={() => router.push(`/session/${challenge.id}`)}>
+                                                                <Button variant="outline" size="icon" onClick={() => router.push(`/session/${challenge.id}`)} title="Comenzar Sesión">
                                                                     <Play className="h-4 w-4" />
                                                                     <span className="sr-only">Comenzar Sesión</span>
                                                                 </Button>
@@ -313,17 +335,26 @@ export default function ChallengesPage() {
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
                                                                         <DropdownMenuSub>
-                                                                            <DropdownMenuSubTrigger>
-                                                                                <span>Cambiar Estado</span>
-                                                                            </DropdownMenuSubTrigger>
+                                                                            <DropdownMenuSubTrigger><span>Cambiar Estado</span></DropdownMenuSubTrigger>
                                                                             <DropdownMenuSubContent>
                                                                                 <DropdownMenuRadioGroup 
                                                                                     value={challenge.status} 
-                                                                                    onValueChange={(status) => handleStatusChange(challenge.id, status as ChallengeStatus)}
+                                                                                    onValueChange={(status) => handleChallengeUpdate(challenge.id, { status: status as ChallengeStatus })}
                                                                                 >
                                                                                     <DropdownMenuRadioItem value="published">Publicado</DropdownMenuRadioItem>
                                                                                     <DropdownMenuRadioItem value="draft">Borrador</DropdownMenuRadioItem>
                                                                                     <DropdownMenuRadioItem value="archived">Archivado</DropdownMenuRadioItem>
+                                                                                </DropdownMenuRadioGroup>
+                                                                            </DropdownMenuSubContent>
+                                                                        </DropdownMenuSub>
+                                                                        <DropdownMenuSub>
+                                                                            <DropdownMenuSubTrigger><span>Cambiar Dificultad</span></DropdownMenuSubTrigger>
+                                                                            <DropdownMenuSubContent>
+                                                                                <DropdownMenuRadioGroup 
+                                                                                    value={challenge.difficulty} 
+                                                                                    onValueChange={(difficulty) => handleChallengeUpdate(challenge.id, { difficulty: difficulty as ChallengeDifficulty })}
+                                                                                >
+                                                                                    {difficulties.map(diff => <DropdownMenuRadioItem key={diff} value={diff}>{diff}</DropdownMenuRadioItem>)}
                                                                                 </DropdownMenuRadioGroup>
                                                                             </DropdownMenuSubContent>
                                                                         </DropdownMenuSub>
@@ -352,7 +383,7 @@ export default function ChallengesPage() {
                           No se encontraron desafíos
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          Intenta ajustar el filtro o crea un nuevo desafío.
+                          Intenta ajustar los filtros o crea un nuevo desafío.
                         </p>
                         <Button className="mt-4" asChild>
                             <Link href="/challenges/new">Nuevo Desafío</Link>

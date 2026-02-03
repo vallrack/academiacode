@@ -127,11 +127,15 @@ const challengeTemplates = {
 };
 
 type LanguageWithTemplate = keyof typeof challengeTemplates;
+type ChallengeDifficulty = "Básico" | "Medio" | "Avanzado";
+
+const difficulties: ChallengeDifficulty[] = ["Básico", "Medio", "Avanzado"];
 
 export default function NewChallengePage() {
   const [language, setLanguage] = useState<string>("javascript");
   const [title, setTitle] = useState(challengeTemplates.javascript.title);
   const [category, setCategory] = useState("Semana 1");
+  const [difficulty, setDifficulty] = useState<ChallengeDifficulty>('Básico');
   const [description, setDescription] = useState(challengeTemplates.javascript.description);
   const [testCases, setTestCases] = useState(challengeTemplates.javascript.testCases);
   const [allowInteractive, setAllowInteractive] = useState(false);
@@ -193,6 +197,7 @@ export default function NewChallengePage() {
       description,
       language,
       category,
+      difficulty,
       testCases,
       allowInteractiveApis: allowInteractive,
       maxAttempts: maxAttempts === '' ? null : Number(maxAttempts),
@@ -299,7 +304,7 @@ export default function NewChallengePage() {
                 </Select>
               </div>
             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="grid gap-3">
                   <Label htmlFor="category">Categoría</Label>
                   <Input
@@ -310,6 +315,17 @@ export default function NewChallengePage() {
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                   />
+                </div>
+                <div className="grid gap-3">
+                  <Label htmlFor="difficulty">Dificultad</Label>
+                  <Select value={difficulty} onValueChange={(value) => setDifficulty(value as ChallengeDifficulty)}>
+                    <SelectTrigger id="difficulty" aria-label="Selecciona una dificultad">
+                      <SelectValue placeholder="Selecciona una dificultad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {difficulties.map(diff => <SelectItem key={diff} value={diff}>{diff}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-3">
                   <Label htmlFor="max-attempts">Máximo de Intentos</Label>
