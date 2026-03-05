@@ -3,8 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useFirestore, useAuth } from '@/firebase/provider';
 import { Button } from '@/components/ui/button';
 
 import { CourseCard, CourseCardSkeleton } from '@/app/courses/_components/course-card';

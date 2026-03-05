@@ -2,9 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/firebase/auth';
+import { useUser, useFirestore } from '@/firebase/provider';
 import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import Link from 'next/link';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
