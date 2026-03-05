@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/components/providers/auth-provider';
+import { Button } from '@/components/ui/button';
 
 import { CourseCard, CourseCardSkeleton } from '../courses/course-card';
 import { type Course } from '../admin/courses/courses-data-table';
@@ -90,7 +91,7 @@ export default function MyCoursesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {enrichedCourses.map(course => (
             <CourseCard key={course.id} course={course} />
-          ))
+          ))}
         </div>
       ) : (
         <div className="text-center text-muted-foreground mt-12">
