@@ -7,7 +7,7 @@ import { useFirestore } from '@/firebase';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 
-import { CourseCard, CourseCardSkeleton } from '../courses/course-card';
+import { CourseCard, CourseCardSkeleton } from '@/app/courses/_components/course-card';
 import { type Course } from '../admin/courses/courses-data-table';
 
 export default function MyCoursesPage() {
