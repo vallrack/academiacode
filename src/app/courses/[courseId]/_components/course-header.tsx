@@ -5,9 +5,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useUser } from '@/firebase/auth';
+import { useUser, useFirestore } from '@/firebase/provider';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 

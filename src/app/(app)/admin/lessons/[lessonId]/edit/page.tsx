@@ -124,7 +124,7 @@ export default function EditLessonPage() {
                 <CardContent className="space-y-6">
                   <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título de la lección</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="videoUrl" render={({ field }) => (<FormItem><FormLabel>URL del Vídeo</FormLabel><FormControl><Input placeholder='https://youtube.com/watch?v=...' {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descripción / Contenido</FormLabel><FormControl><Textarea {...field} rows={12} /></FormControl><FormMessage /></FormMessage>)} />
+                  <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descripción / Contenido</FormLabel><FormControl><Textarea {...field} rows={12} /></FormControl><FormMessage /></FormItem>)} />
                 </CardContent>
               </Card>
             </div>
