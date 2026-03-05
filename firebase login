@@ -1,0 +1,98 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helpers ---
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    function getRole() { 
+      return request.auth.token.get('role', null); 
+    }
+    
+    function isAdmin() { 
+      return isSignedIn() && getRole() == 'SUPER_ADMIN'; 
+    }
+    
+    function isTeacher() { 
+      return isSignedIn() && getRole() == 'TEACHER'; 
+    }
+    
+    function isStudent() { 
+      return isSignedIn() && getRole() == 'STUDENT'; 
+    }
+    
+    // --- Usuarios ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      
+      // Admins y Teachers pueden listar todos los usuarios
+      allow list: if isAdmin() || isTeacher();
+      
+      allow create: if isSignedIn();
+      
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || isAdmin()
+      );
+      
+      // ✅ Solo SUPER_ADMIN puede eliminar
+      allow delete: if isAdmin();
+    }
+    
+    // --- Grupos ---
+    match /groups/{groupId} { 
+      allow get: if isSignedIn();
+      
+      // Admins y Teachers pueden listar todos los grupos
+      allow list: if isAdmin() || isTeacher();
+      
+      // ✅ Solo SUPER_ADMIN puede escribir
+      allow write: if isAdmin();
+    }
+    
+    // --- Asignaciones ---
+    match /assignments/{assignmentId} {
+      allow get: if isSignedIn();
+      
+      // Todos pueden listar (filtrado en cliente)
+      allow list: if isSignedIn();
+      
+      allow create, update: if isTeacher() || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // --- Desafíos ---
+    match /challenges/{challengeId} { 
+      allow read: if isSignedIn(); 
+      allow write: if isTeacher() || isAdmin(); 
+    }
+    
+    // --- Sumisiones ---
+    match /submissions/{submissionId} {
+      allow get: if isSignedIn();
+      
+      // Todos pueden listar (filtrado en cliente)
+      allow list: if isSignedIn();
+      
+      allow create: if isAdmin() || (
+        isStudent() && 
+        request.resource.data.studentId == request.auth.uid
+      );
+      
+      allow update, delete: if false;
+    }
+    
+    // --- Cursos ---
+    match /courses/{courseId} {
+      allow read: if isSignedIn();
+      allow write: if isTeacher() || isAdmin();
+      
+      match /{allPaths=**} { 
+        allow read: if isSignedIn();
+        allow write: if isTeacher() || isAdmin();
+      }
+    }
+  }
+}

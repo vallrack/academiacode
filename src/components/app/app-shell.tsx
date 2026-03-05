@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers, UserCog, ClipboardList, Moon, Sun } from 'lucide-react';
+import { Home, BookOpen, Users, BarChart3, Menu, X, ChevronLeft, ChevronRight, LogOut, Layers, UserCog, ClipboardList, Moon, Sun, Library } from 'lucide-react';
 import { useAuth, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -21,6 +21,7 @@ const allMenuItems = [
   { icon: Home, label: 'Panel', href: '/dashboard', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
   { icon: ClipboardList, label: 'Asignaciones', href: '/assignments', roles: ['STUDENT', 'TEACHER', 'SUPER_ADMIN'] },
   { icon: BookOpen, label: 'Desafíos', href: '/challenges', roles: ['TEACHER', 'SUPER_ADMIN'] },
+  { icon: Library, label: 'Cursos', href: '/admin/courses', roles: ['TEACHER', 'SUPER_ADMIN'] },
   { icon: Layers, label: 'Grupos', href: '/groups', roles: ['TEACHER', 'SUPER_ADMIN'] },
   { icon: Users, label: 'Estudiantes', href: '/students', roles: ['TEACHER', 'SUPER_ADMIN'] },
   { icon: UserCog, label: 'Usuarios', href: '/users', roles: ['SUPER_ADMIN'] },

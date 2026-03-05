@@ -1,33 +1,29 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // --- Helpers de Autenticación y Rol ---
-    function isSignedIn() { 
-      return request.auth != null; 
+    function isSignedIn() {
+      return request.auth != null;
     }
-    
-    function getRole() { 
-      return request.auth.token.get('role', null); 
+
+    function getRole() {
+      return request.auth.token.get('role', null);
     }
-    
-    function isAdmin() { 
-      return isSignedIn() && getRole() == 'SUPER_ADMIN'; 
+
+    // Usando los nombres de rol actualizados
+    function isAdmin() {
+      return isSignedIn() && getRole() == 'Super Admin';
     }
-    
-    function isTeacher() { 
-      return isSignedIn() && getRole() == 'TEACHER'; 
+
+    function isTeacher() {
+      return isSignedIn() && getRole() == 'Profesor';
     }
-    
-    function isStudent() { 
-      return isSignedIn() && getRole() == 'STUDENT'; 
+
+    function isStudent() {
+      return isSignedIn() && getRole() == 'Estudiante';
     }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-    
+
     // --- Usuarios ---
     match /users/{userId} {
       allow read: if isSignedIn();
@@ -35,57 +31,54 @@ service cloud.firestore {
       allow update: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
     }
-    
+
     // --- Grupos ---
-    match /groups/{groupId} { 
-      // Allow anyone to read the list of groups for the registration form
-      allow get, list: if true;
-      
-      // Keep write access restricted
+    match /groups/{groupId} {
+      allow read: if true;
       allow create: if isAdmin();
       allow update, delete: if isAdmin() || isTeacher();
     }
     
-    // --- Asignaciones ---
-    match /assignments/{assignmentId} {
-      // Permite leer CUALQUIER asignación sin restricciones de query
-      allow get: if isSignedIn();
-      allow list: if isSignedIn(); // ⬅️ ESTO ES CLAVE
-      
-      allow create: if isTeacher() || isAdmin();
-      allow update: if isTeacher() || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // --- Desafíos ---
-    match /challenges/{challengeId} { 
-      allow read: if isSignedIn(); 
-      allow create: if isTeacher() || isAdmin();
-      allow update: if isTeacher() || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // --- Submissions (Resultados) ---
-    match /submissions/{submissionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn(); // ⬅️ ESTO TAMBIÉN
-      
-      allow create: if isSignedIn();
-      allow update: if isAdmin() || isTeacher();
-      allow delete: if isAdmin();
-    }
-    
     // --- Cursos ---
     match /courses/{courseId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isTeacher() || isAdmin();
+    }
+    
+    // --- Módulos (REGLA CORREGIDA A NIVEL RAÍZ) ---
+    match /modules/{moduleId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isTeacher() || isAdmin();
+    }
+    
+    // --- Lecciones (REGLA CORREGIDA A NIVEL RAÍZ) ---
+    match /lessons/{lessonId} {
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isTeacher() || isAdmin();
+    }
+
+    // --- Asignaciones ---
+    match /assignments/{assignmentId} {
+      allow read, list: if isSignedIn();
+      allow create: if isTeacher() || isAdmin();
+      allow update: if isTeacher() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- Desafíos ---
+    match /challenges/{challengeId} {
       allow read: if isSignedIn();
       allow create: if isTeacher() || isAdmin();
       allow update: if isTeacher() || isAdmin();
       allow delete: if isAdmin();
-      
-      match /{allPaths=**} { 
-        allow read: if isSignedIn(); 
-        allow write: if isTeacher() || isAdmin();
-      }
+    }
+
+    // --- Submissions (Resultados) ---
+    match /submissions/{submissionId} {
+      allow read, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || isTeacher();
+      allow delete: if isAdmin();
     }
   }
 }

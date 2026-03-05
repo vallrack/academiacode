@@ -21,7 +21,8 @@ import { useUser } from '@/firebase/auth/use-user';
 
 export const dynamic = 'force-dynamic';
 
-type UserRole = "STUDENT" | "TEACHER" | "SUPER_ADMIN";
+// RESTORED: Use the original roles your system was built with
+type UserRole = "Estudiante" | "Profesor" | "Super Admin";
 
 type GroupSchedule = {
   days: string[];
@@ -38,7 +39,7 @@ type Group = {
 export default function EditUserPage() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<UserRole>('STUDENT');
+  const [role, setRole] = useState<UserRole>('Estudiante');
   const [studentGroupId, setStudentGroupId] = useState('');
   const [teacherManagedGroups, setTeacherManagedGroups] = useState<Record<string, boolean>>({});
 
@@ -53,7 +54,7 @@ export default function EditUserPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
-  const { user: currentUser } = useUser(); // The logged-in admin
+  const { user: currentUser } = useUser();
 
   const groupsQuery = useMemo(() => {
     if (!firestore) return null;
@@ -74,14 +75,14 @@ export default function EditUserPage() {
           const userData = userDocSnap.data();
           setDisplayName(userData.displayName || '');
           setEmail(userData.email || '');
-          const userRole = userData.role || 'STUDENT';
+          const userRole = userData.role || 'Estudiante';
           setRole(userRole);
           
-          if (userRole === 'STUDENT') {
+          if (userRole === 'Estudiante') {
             setStudentGroupId(userData.groupId || '');
           }
           
-          if (userRole === 'TEACHER') {
+          if (userRole === 'Profesor') {
             const managedIds: string[] = userData.managedGroupIds || [];
             const managedMap = managedIds.reduce((acc: Record<string, boolean>, id: string) => {
               acc[id] = true;
@@ -129,7 +130,7 @@ export default function EditUserPage() {
       return;
     }
     
-    if (role === 'STUDENT' && !studentGroupId) {
+    if (role === 'Estudiante' && !studentGroupId) {
         toast({ variant: "destructive", title: "Campo Requerido", description: "Un estudiante debe pertenecer a un grupo." });
         return;
     }
@@ -140,10 +141,10 @@ export default function EditUserPage() {
     try {
       const updatedData: any = { displayName, email, role };
       
-      if (role === 'STUDENT') {
+      if (role === 'Estudiante') {
         updatedData.groupId = studentGroupId;
         updatedData.managedGroupIds = null;
-      } else if (role === 'TEACHER') {
+      } else if (role === 'Profesor') {
         updatedData.groupId = null;
         updatedData.managedGroupIds = Object.keys(teacherManagedGroups).filter(id => teacherManagedGroups[id]);
       } else { 
@@ -151,11 +152,7 @@ export default function EditUserPage() {
         updatedData.managedGroupIds = null;
       }
       
-      // Actualizar el documento de Firestore
-      await updateDoc(userDocRef, updatedData);
-
-      // Actualizar los custom claims en Firebase Auth
-      const idToken = await currentUser.getIdToken(true); // Forzar refresco para obtener token de admin
+      const idToken = await currentUser.getIdToken(true);
       const response = await fetch('/api/set-custom-claims', {
         method: 'POST',
         headers: { 
@@ -170,11 +167,13 @@ export default function EditUserPage() {
         throw new Error(errorData.error || 'Failed to set custom claims');
       }
 
+      await updateDoc(userDocRef, updatedData);
+
       toast({ title: "¡Usuario Actualizado!", description: `Los datos y permisos de ${displayName} se han actualizado.` });
       
     } catch (error: any) {
       console.error("Error updating user:", error);
-      toast({ variant: "destructive", title: "Error al Actualizar", description: error.message || "No se pudo actualizar el usuario. Verifica los permisos y la conexión." });
+      toast({ variant: "destructive", title: "Error al Actualizar", description: error.message || "No se pudo actualizar el usuario." });
     } finally {
       setIsSaving(false);
     }
@@ -220,14 +219,14 @@ export default function EditUserPage() {
               <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
                 <SelectTrigger><SelectValue placeholder="Selecciona un rol" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="STUDENT">Estudiante</SelectItem>
-                  <SelectItem value="TEACHER">Profesor</SelectItem>
-                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                  <SelectItem value="Estudiante">Estudiante</SelectItem>
+                  <SelectItem value="Profesor">Profesor</SelectItem>
+                  <SelectItem value="Super Admin">Super Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {role === 'STUDENT' && (
+            {role === 'Estudiante' && (
               <div className="grid gap-3">
                 <Label htmlFor="group">Grupo del Estudiante</Label>
                 {loadingGroups ? <Skeleton className="h-10 w-full" /> : (
@@ -239,7 +238,7 @@ export default function EditUserPage() {
               </div>
             )}
 
-            {role === 'TEACHER' && (
+            {role === 'Profesor' && (
               <div className="grid gap-3">
                 <Label>Grupos que Gestiona el Profesor</Label>
                 <Card className="p-4"><div className="space-y-3">

@@ -1,11 +1,12 @@
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { firebaseConfig } from '../firebase/config';
 import { genkit, Ai } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
-const app = initializeApp(firebaseConfig);
+
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const ai: Ai = genkit({
@@ -31,36 +32,33 @@ async function classifyChallenge(challenge: Challenge): Promise<ChallengeDifficu
     Descripción: ${challenge.description}
     Lenguaje: ${challenge.language}
     Casos de Prueba: ${challenge.testCases}
-
-    Responde únicamente con una de las tres opciones: "Básico", "Medio" o "Avanzado".
   `;
 
-  const response = await ai.generateText({ prompt });
+  const response = await ai.generateText({
+    prompt: prompt,
+    temperature: 0.3,
+  });
+
   const classification = response.text().trim();
 
-  if (["Básico", "Medio", "Avanzado"].includes(classification)) {
-    return classification as ChallengeDifficulty;
+  if (classification === "Básico" || classification === "Medio" || classification === "Avanzado") {
+    return classification;
   }
 
-  return "Básico"; // Default a Básico si la respuesta no es válida
+  // Fallback por si la IA no devuelve una clasificación válida
+  return "Medio";
 }
 
-async function classifyAndApplyDifficulty() {
-  const challengesRef = collection(db, 'challenges');
-  const challengesSnapshot = await getDocs(challengesRef);
+export async function classifyAndSaveChallenges() {
+  const challengesCol = collection(db, 'challenges');
+  const snapshot = await getDocs(challengesCol);
 
-  for (const challengeDoc of challengesSnapshot.docs) {
-    const challenge = { id: challengeDoc.id, ...challengeDoc.data() } as Challenge;
-
-    if (!challengeDoc.data().difficulty) { // Solo clasificar si no tiene dificultad
-      const difficulty = await classifyChallenge(challenge);
-      const challengeToUpdateRef = doc(db, 'challenges', challenge.id);
-      await updateDoc(challengeToUpdateRef, { difficulty });
-      console.log(`Reto "${challenge.title}" clasificado como "${difficulty}"`);
-    }
+  for (const docSnap of snapshot.docs) {
+    const challenge = { id: docSnap.id, ...docSnap.data() } as Challenge;
+    const difficulty = await classifyChallenge(challenge);
+    await updateDoc(doc(db, 'challenges', challenge.id), {
+      difficulty: difficulty,
+    });
+    console.log(`Clasificado reto "${challenge.title}" como ${difficulty}`)
   }
-
-  console.log('Clasificación de retos completada.');
 }
-
-classifyAndApplyDifficulty();

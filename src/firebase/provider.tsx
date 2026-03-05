@@ -17,48 +17,40 @@ interface FirebaseContextValue {
 
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(undefined);
 
-// Singleton instances
-let app: FirebaseApp;
-let firestore: Firestore;
-let auth: Auth;
-
-function initializeFirebase() {
-  if (typeof window !== 'undefined' && !getApps().length) {
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-      throw new Error("Firebase config variables are not defined. Check your environment variables.");
+function createFirebaseServices() {
+    if (typeof window === 'undefined') {
+        return { app: null, firestore: null, auth: null };
     }
+
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+        throw new Error("Las variables de configuración de Firebase no están definidas. Revisa tus variables de entorno.");
+    }
+
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     
-    app = initializeApp(firebaseConfig);
-    
-    // Initialize Firestore with robust persistence settings
+    let firestore: Firestore;
     try {
         firestore = initializeFirestore(app, {
-            localCache: persistentLocalCache({
-                tabManager: persistentMultipleTabManager()
-            })
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
         });
-    } catch(e) {
-        console.warn('Could not initialize persistent cache, falling back to default. Error:', e);
+    } catch (error: any) {
+        if (error.code === 'failed-precondition') {
+            console.warn('La persistencia de Firestore ya está habilitada en otra pestaña.');
+        } else {
+            console.error('Error al inicializar Firestore con persistencia:', error);
+        }
         firestore = getFirestore(app);
     }
     
-    auth = getAuth(app);
-    console.log('✅ Firebase initialized with persistent cache.');
+    const auth = getAuth(app);
 
-  } else if (typeof window !== 'undefined') {
-    app = getApp();
-    firestore = getFirestore(app);
-    auth = getAuth(app);
-  }
+    return { app, firestore, auth };
 }
 
-// Initialize on module load
-initializeFirebase();
+const { app, firestore, auth } = createFirebaseServices();
 
 export function FirebaseProvider({ children }: { children: ReactNode }) {
-  // The context value is now stable as it's based on module-level singletons
   if (!app || !firestore || !auth) {
-    // This can happen during server-side rendering, return null or a loader
     return null; 
   }
 
@@ -75,32 +67,23 @@ export function FirebaseProvider({ children }: { children: ReactNode }) {
 function useFirebaseContext() {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
-    throw new Error('useFirebaseContext must be used within a FirebaseProvider');
+    throw new Error('useFirebaseContext debe ser usado dentro de un FirebaseProvider');
   }
   return context;
 }
 
 export function useFirebaseApp(): FirebaseApp {
   const { firebaseApp } = useFirebaseContext();
-  if (!firebaseApp) {
-    throw new Error('La app de Firebase no está disponible. Revisa tu configuración.');
-  }
   return firebaseApp;
 }
 
 export function useAuth(): Auth {
   const { auth } = useFirebaseContext();
-  if (!auth) {
-    throw new Error('El servicio de autenticación de Firebase no está disponible.');
-  }
   return auth;
 }
 
 export function useFirestore(): Firestore {
   const { firestore } = useFirebaseContext();
-  if (!firestore) {
-    throw new Error('El servicio de Firestore no está disponible.');
-  }
   return firestore;
 }
 

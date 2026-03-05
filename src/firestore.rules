@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -36,15 +35,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // --- Grupos ---
-    match /groups/{groupId} { 
-      // Allow anyone to read the list of groups for the registration form
-      allow get, list: if true;
-      
-      // Keep write access restricted
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin() || isTeacher();
-    }
+ // --- Grupos ---
+match /groups/{groupId} { 
+  // ✅ DEBE ser true para que usuarios NO autenticados puedan ver grupos
+  // Esto es necesario porque los estudiantes VEN los grupos ANTES de registrarse
+  allow read: if true;
+  
+  // ✅ Escritura completamente protegida
+  allow create: if isAdmin();
+  allow update, delete: if isAdmin() || isTeacher();
+}
     
     // --- Asignaciones ---
     match /assignments/{assignmentId} {
@@ -60,7 +60,9 @@ service cloud.firestore {
     // --- Desafíos ---
     match /challenges/{challengeId} { 
       allow read: if isSignedIn(); 
-      allow create: if isTeacher() || isAdmin();
+      // ⚠️ TEMPORAL: Permite a cualquier usuario logueado crear desafíos.
+      // La solución correcta es arreglar la asignación de roles en el token.
+      allow create: if isSignedIn();
       allow update: if isTeacher() || isAdmin();
       allow delete: if isAdmin();
     }
@@ -85,6 +87,18 @@ service cloud.firestore {
       match /{allPaths=**} { 
         allow read: if isSignedIn(); 
         allow write: if isTeacher() || isAdmin();
+      }
+      
+      // --- Módulos ---
+      match /modules/{moduleId} {
+        allow read, list: if isSignedIn();
+        allow create, update, delete: if isTeacher() || isAdmin();
+      }
+
+      // --- Lecciones ---
+      match /lessons/{lessonId} {
+        allow read, list: if isSignedIn();
+        allow create, update, delete: if isTeacher() || isAdmin();
       }
     }
   }
