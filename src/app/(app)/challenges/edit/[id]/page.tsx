@@ -9,7 +9,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
-import { ChallengeForm, challengeFormSchema } from '@/components/app/challenge-form';
+import { ChallengeForm, challengeFormSchema } from '@/components/challenges/challenge-form';
 
 export default function EditChallengePage() {
     const { id } = useParams();
