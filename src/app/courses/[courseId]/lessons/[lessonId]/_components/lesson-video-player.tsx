@@ -1,7 +1,7 @@
 
 'use client';
 
-import ReactPlayer from 'react-player/lazy';
+import ReactPlayer from 'react-player';
 
 interface LessonVideoPlayerProps {
   videoUrl?: string;

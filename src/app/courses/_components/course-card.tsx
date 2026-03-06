@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Tipo de datos para el curso
 interface Course {
@@ -44,4 +45,21 @@ export function CourseCard({ course }: CourseCardProps) {
             </CardFooter>
         </Card>
     );
+}
+
+export function CourseCardSkeleton() {
+    return (
+        <Card>
+            <div className="aspect-video bg-muted" />
+            <CardContent className="p-4">
+                <div className="space-y-2">
+                    <Skeleton className="h-4" />
+                    <Skeleton className="h-4 w-5/6" />
+                </div>
+            </CardContent>
+            <CardFooter className="p-4 pt-0">
+                 <Skeleton className="h-10 w-full" />
+            </CardFooter>
+        </Card>
+    )
 }

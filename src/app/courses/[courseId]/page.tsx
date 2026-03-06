@@ -1,6 +1,6 @@
 
 import { getDoc, doc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/firebase/server";
+import { adminDb } from "@/lib/firebase-admin";
 import { notFound } from "next/navigation";
 
 import { CourseHeader } from "./_components/course-header";
@@ -36,7 +36,7 @@ interface LessonData {
 
 // Función para obtener los datos del curso
 async function getCourse(courseId: string) {
-  const courseRef = doc(db, "courses", courseId);
+  const courseRef = doc(adminDb, "courses", courseId);
   const courseSnap = await getDoc(courseRef);
 
   if (!courseSnap.exists() || !courseSnap.data().isPublished) {
@@ -46,19 +46,19 @@ async function getCourse(courseId: string) {
   const courseData = { id: courseSnap.id, ...courseSnap.data() } as CourseData;
 
   // Obtener docente
-  const teacherRef = doc(db, "users", courseData.teacherId);
+  const teacherRef = doc(adminDb, "users", courseData.teacherId);
   const teacherSnap = await getDoc(teacherRef);
   const teacherData = teacherSnap.exists() ? (teacherSnap.data() as TeacherData) : { name: "Docente no encontrado" };
 
   // Obtener módulos y lecciones
-  const modulesQuery = query(collection(db, "modules"), where("courseId", "==", courseId), orderBy("order"));
+  const modulesQuery = query(collection(adminDb, "modules"), where("courseId", "==", courseId), orderBy("order"));
   const modulesSnap = await getDocs(modulesQuery);
   const modules: ModuleData[] = [];
 
   for (const moduleDoc of modulesSnap.docs) {
     const moduleData = { id: moduleDoc.id, ...moduleDoc.data() } as Omit<ModuleData, 'lessons'>;
     
-    const lessonsQuery = query(collection(db, "lessons"), where("moduleId", "==", moduleDoc.id), orderBy("order"));
+    const lessonsQuery = query(collection(adminDb, "lessons"), where("moduleId", "==", moduleDoc.id), orderBy("order"));
     const lessonsSnap = await getDocs(lessonsQuery);
     const lessons = lessonsSnap.docs.map(lessonDoc => ({ id: lessonDoc.id, ...lessonDoc.data() } as LessonData));
     

@@ -1,8 +1,7 @@
 
 import { getDoc, doc } from "firebase/firestore";
-import { db } from "@/firebase/server";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 import { notFound } from "next/navigation";
-import { auth } from "@/firebase/server"; // Import server-side auth
 
 import { LessonVideoPlayer } from "./_components/lesson-video-player";
 import { LessonContent } from "./_components/lesson-content";
@@ -24,7 +23,7 @@ interface EnrollmentStatus {
 
 // --- Función para obtener los datos de la lección y el estado de matriculación ---
 async function getLessonData(courseId: string, lessonId: string, userId: string | null) {
-    const lessonRef = doc(db, "lessons", lessonId);
+    const lessonRef = doc(adminDb, "lessons", lessonId);
     const lessonSnap = await getDoc(lessonRef);
 
     if (!lessonSnap.exists()) {
@@ -39,7 +38,7 @@ async function getLessonData(courseId: string, lessonId: string, userId: string 
         if (!userId) { // Si no hay usuario y la lección no es gratis, no puede acceder
             return { lesson: lessonData, isEnrolled: false };
         }
-        const enrollmentRef = doc(db, `users/${userId}/enrollments`, courseId);
+        const enrollmentRef = doc(adminDb, `users/${userId}/enrollments`, courseId);
         const enrollmentSnap = await getDoc(enrollmentRef);
         isEnrolled = enrollmentSnap.exists();
     }
@@ -51,7 +50,7 @@ async function getLessonData(courseId: string, lessonId: string, userId: string 
 // --- Componente de la Página de la Lección ---
 export default async function LessonPage({ params }: { params: { courseId: string, lessonId: string } }) {
     
-    const user = await auth.currentUser; // Obtener el usuario actual en el servidor
+    const user = await adminAuth.currentUser; // Obtener el usuario actual en el servidor
     const { lesson, isEnrolled } = await getLessonData(params.courseId, params.lessonId, user?.uid || null);
 
     // Si la lección no es gratuita y el usuario no está matriculado, no puede verla

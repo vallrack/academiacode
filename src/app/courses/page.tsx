@@ -1,6 +1,6 @@
 
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
-import { db } from "@/firebase/server";
+import { adminDb } from "@/lib/firebase-admin";
 import { CourseCard } from "./_components/course-card";
 
 // Tipos de datos
@@ -14,7 +14,7 @@ interface Course {
 
 // --- Función para obtener todos los cursos publicados ---
 async function getPublishedCourses() {
-    const coursesRef = collection(db, "courses");
+    const coursesRef = collection(adminDb, "courses");
     // Creamos una consulta que filtra por `isPublished: true` y ordena por fecha de creación
     const q = query(coursesRef, where("isPublished", "==", true), orderBy("createdAt", "desc"));
     

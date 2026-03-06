@@ -7,7 +7,7 @@ import { doc, getDoc, collection, addDoc, serverTimestamp, onSnapshot, query, or
 import { useUser, useFirestore } from '@/firebase/provider';
 
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
-import { InteractiveScene } from '@/components/app/interactive-scene';
+import InteractiveScene from '@/components/app/interactive-scene';
 import { RealTimeUsers } from '@/components/app/real-time-users';
 import { Button } from '@/components/ui/button';
 import { Send } from 'lucide-react';
